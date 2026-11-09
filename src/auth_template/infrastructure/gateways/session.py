@@ -1,4 +1,3 @@
-from typing import override
 from uuid import UUID
 
 from sqlalchemy import insert, select, update
@@ -16,7 +15,6 @@ class SessionGateway(SessionGatewayInterface):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    @override
     async def save(self, session: AuthSession, token: RefreshToken) -> None:
         await self._session.execute(
             insert(AuthSessionModel).values(
@@ -35,7 +33,6 @@ class SessionGateway(SessionGatewayInterface):
             )
         )
 
-    @override
     async def get(self, session_id: UUID, *, lock: bool = False) -> AuthSession | None:
         query = select(AuthSessionModel).where(AuthSessionModel.id == session_id)
         if lock:
@@ -52,7 +49,6 @@ class SessionGateway(SessionGatewayInterface):
             else None
         )
 
-    @override
     async def find_token(self, digest: str) -> RefreshToken | None:
         row = await self._session.scalar(
             select(RefreshTokenModel)
@@ -67,7 +63,6 @@ class SessionGateway(SessionGatewayInterface):
             else None
         )
 
-    @override
     async def rotate(self, old_digest: str, token: RefreshToken) -> None:
         await self._session.execute(
             update(RefreshTokenModel)
@@ -76,7 +71,6 @@ class SessionGateway(SessionGatewayInterface):
         )
         await self._save_token(token)
 
-    @override
     async def revoke(self, session_id: UUID) -> None:
         await self._session.execute(
             update(AuthSessionModel)
@@ -84,7 +78,6 @@ class SessionGateway(SessionGatewayInterface):
             .values(is_revoked=True)
         )
 
-    @override
     async def revoke_for_user(self, user_id: UUID) -> None:
         await self._session.execute(
             update(AuthSessionModel)

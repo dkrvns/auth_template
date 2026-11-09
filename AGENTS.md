@@ -20,3 +20,4 @@ and rate limiters belong in separate modules rather than gateway aggregators.
 User and session gateway implementations must explicitly implement their contracts
 from infrastructure/interfaces/gateways. Preserve narrow application ports where
 consumers only need a subset of the gateway operations.
+Do not add @override decorators to gateway implementations.
