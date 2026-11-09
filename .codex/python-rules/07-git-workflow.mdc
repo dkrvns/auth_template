@@ -1,0 +1,101 @@
+---
+description: Git/GitHub workflow; commit automatically, push only with explicit user authorization, never push main/master
+alwaysApply: true
+---
+
+# Git and GitHub
+
+## Restrictions
+
+- Never push to main/master, including force pushes and refspecs such as `git push origin HEAD:main` or `feature:master`. Apply the same restriction to protected branches such as develop/release/*.
+- Never commit directly on main/master; create a working branch first.
+- Never push without explicit user authorization, including to feature branches.
+- Without a separate request, do not force-push, use force-with-lease, reset --hard, rebase or amend published commits, delete branches, run git clean -fd, merge PRs, or change repository/protection settings.
+- Do not change git config (identity/remotes) without a request. Never bypass hooks with --no-verify.
+
+## Branches
+
+- Check `git branch --show-current` before work. On main/master, create a branch:
+
+```bash
+  git switch -c <type>/<short-description>
+  ```
+
+- Use lowercase Latin `<type>/<kebab-case-description>` names, e.g. feat/order-placement or fix/empty-order-error. Include the ticket ID when present, e.g. feat/SHOP-123-order-placement.
+- Use one branch per task. Reuse the user's current working branch unless there is a reason to create another.
+
+## Commit automatically
+
+After each completed logical step, and before reporting completion, stage and commit the task changes without asking permission.
+
+Before committing:
+1. Inspect git status and git diff; include only the intended task changes.
+2. Run `uv run ruff format .`, `uv run ruff check .` and `uv run pytest`. Commit failing checks only when explicitly requested, noting failures in the message.
+3. Stage explicit paths. Use git add -A or git add . only when every status entry belongs to the task.
+
+Never commit secrets/local settings (.env, keys, tokens, *.pem, database dumps), generated/runtime artifacts (.venv/, __pycache__/, test/lint/type caches, dist/, logs), or large binaries without a request. If these appear in status, add appropriate .gitignore entries in a separate commit and notify the user.
+
+Use English imperative Conventional Commits:
+
+```
+<type>(<scope>): <summary>
+
+<why, when not clear from the subject>
+```
+
+- Allowed types: feat, fix, refactor, test, docs, chore, build, ci, perf. Scope names the affected context/module.
+- Keep the subject within 72 characters with no final period.
+- One commit per logical change; separate unrelated refactoring, features and formatting. Do not amend/squash already pushed commits.
+
+## Push authorization
+
+When pushing is not already authorized, prepare a concrete summary before asking:
+
+```bash
+git branch --show-current
+git fetch origin
+git log --oneline origin/<branch>..HEAD   # for a new branch: git log --oneline origin/main..HEAD
+```
+
+State the local/remote branch, whether it is new, included commit hashes/subjects and check results; then ask whether to push.
+
+- Explicit approval such as 'yes', 'push' or 'approve' is required. Silence, unrelated answers, praise or 'I'll review later' do not authorize a push.
+- Approval for a presented push covers that branch and commit set once. If they change, ask again unless an advance instruction already authorizes the task's push.
+- Advance permission such as 'push it yourself' or an explicit request to upload all task changes covers this task; do not ask for the same authorization again. The main/master restriction still applies.
+- If the target is main/master, do not request approval to violate the restriction; propose a working branch.
+
+After authorization, push yourself:
+
+```bash
+git push -u origin <branch>
+```
+
+- For a non-fast-forward rejection, never force-push. Reconcile with `git pull --rebase origin <branch>`; on conflicts, stop and show them to the user. Reconfirm the changed push when necessary.
+- Retry transient network failures up to three times with a delay. Do not bypass authentication errors (403/Permission denied); report them.
+- After success, report the branch and the remote link printed by Git/GitHub.
+
+## Pull requests
+
+- Create a PR only when requested, using gh pr create with the intended base/head/title/body; follow the repository template and explain changes and validation.
+- Merge, enable auto-merge, approve the agent's own PR, close another person's PR, or change repository settings only on explicit request.
+- Address review feedback through new commits, not published-history rewrites; obtain push authorization as applicable.
+
+## Additional protection
+
+If absent, recommend rather than silently enable branch protection requiring PRs/passing CI and blocking direct/force pushes to main/master. A local hook can also block protected-branch pushes:
+
+```sh
+#!/bin/sh
+# .git/hooks/pre-push  (chmod +x .git/hooks/pre-push)
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main | refs/heads/master)
+      echo "pre-push: push to '${remote_ref#refs/heads/}' is forbidden, use a feature branch" >&2
+      exit 1
+      ;;
+  esac
+done
+exit 0
+```
+
+Hooks apply to agent pushes too; never bypass them with --no-verify.

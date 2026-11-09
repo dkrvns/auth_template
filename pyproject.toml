@@ -1,0 +1,63 @@
+[project]
+name = "auth-template"
+version = "0.1.0"
+description = "Reusable FastAPI authentication with explicit use cases and ports"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "alembic>=1.20.1",
+    "anyio>=4.16.0",
+    "dishka>=1.10.1",
+    "email-validator>=2.3.0",
+    "fastapi>=0.162.2",
+    "psycopg[binary]>=3.3.8",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
+    "pyjwt>=2.15.1",
+    "sqlalchemy[asyncio]>=2.1.8",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "faker>=40.44.0",
+    "httpx>=0.28.1",
+    "mypy>=2.4.1",
+    "pip-audit>=2.10.1",
+    "pytest>=9",
+    "pytest-asyncio>=1.4.1.post1",
+    "ruff>=0.17.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "tests"]
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RUF", "ASYNC", "PT"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["auth_template"]
+
+[tool.ruff.format]
+quote-style = "single"
+line-ending = "lf"
+
+[tool.pytest]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]
