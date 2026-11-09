@@ -2,8 +2,10 @@
 
 Read [.codex/AGENTS.md](.codex/AGENTS.md) and the applicable complete rule files.
 
-Do not modify existing tests or test fixtures without the user's explicit permission.
-This includes automatic formatting and lint fixes in test files.
+Imports in existing tests and test fixtures may be updated without additional
+permission. Do not change test or fixture logic without the user's explicit
+permission, including assertions, test data, mock behavior and test coverage.
+Keep formatting and lint fixes in test files limited to import changes.
 
 Group state-changing business operations in application/commands/<area>/ and
 atomic application actions in application/interactors/<area>/; avoid generic
