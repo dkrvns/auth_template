@@ -12,7 +12,9 @@ from auth_template.application.ports import (
     UserReader,
     UserSaver,
 )
-from auth_template.application.use_cases import SignUpCommand
+from auth_template.infrastructure.auth.handlers.registration.sign_up import (
+    SignUpHandler as SignUpCommand,
+)
 
 
 @pytest.fixture
