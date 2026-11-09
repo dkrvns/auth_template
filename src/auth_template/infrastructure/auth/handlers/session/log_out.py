@@ -1,12 +1,10 @@
 from auth_template.application.dto.principal import Principal
 from auth_template.application.ports.committer import Committer
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
+from auth_template.application.ports.session.updater import SessionUpdater
 
 
 class LogOutHandler:
-    def __init__(self, sessions: SessionGatewayInterface, committer: Committer) -> None:
+    def __init__(self, sessions: SessionUpdater, committer: Committer) -> None:
         self._sessions = sessions
         self._committer = committer
 

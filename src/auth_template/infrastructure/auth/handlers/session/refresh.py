@@ -5,24 +5,25 @@ from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
 )
+from auth_template.application.ports.session.reader import SessionReader
+from auth_template.application.ports.session.updater import SessionUpdater
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
 
 
 class RefreshHandler:
     def __init__(
         self,
-        sessions: SessionGatewayInterface,
+        session_reader: SessionReader,
+        session_updater: SessionUpdater,
         reader: UserReader,
         generator: RefreshTokenGenerator,
         issuer: TokenIssuer,
         clock: Clock,
         committer: Committer,
     ) -> None:
-        self._sessions = sessions
+        self._session_reader = session_reader
+        self._session_updater = session_updater
         self._reader = reader
         self._generator = generator
         self._issuer = issuer
@@ -31,15 +32,15 @@ class RefreshHandler:
 
     async def __call__(self, raw_token: str) -> TokenPairDTO:
         digest = self._generator.digest(raw_token)
-        token = await self._sessions.find_token(digest)
+        token = await self._session_reader.find_token(digest)
         if token is None:
             raise InvalidTokenError
-        session = await self._sessions.get(token.session_id)
+        session = await self._session_reader.get(token.session_id)
         if session is None:
             raise InvalidTokenError
         user = await self._reader.get_by_id(session.user_id, lock=True)
-        session = await self._sessions.get(session.id, lock=True)
-        token = await self._sessions.find_token(digest)
+        session = await self._session_reader.get(session.id, lock=True)
+        token = await self._session_reader.find_token(digest)
         now = self._clock()
         if (
             user is None
@@ -51,11 +52,11 @@ class RefreshHandler:
         ):
             raise InvalidTokenError
         if token.is_used:
-            await self._sessions.revoke(session.id)
+            await self._session_updater.revoke(session.id)
             # Persist replay revocation even though this request returns 401.
             await self._committer.commit()
             raise InvalidTokenError
         pair, replacement = self._issuer.issue(session, now)
-        await self._sessions.rotate(digest, replacement)
+        await self._session_updater.rotate(digest, replacement)
         await self._committer.commit()
         return pair

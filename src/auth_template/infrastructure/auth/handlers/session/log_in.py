@@ -7,11 +7,9 @@ from auth_template.application.ports.clock import Clock
 from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.id_generator import IdGenerator
 from auth_template.application.ports.security.password_hasher import PasswordHasher
+from auth_template.application.ports.session.saver import SessionSaver
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
 
 
 class LogInHandler:
@@ -19,7 +17,7 @@ class LogInHandler:
         self,
         reader: UserReader,
         hasher: PasswordHasher,
-        sessions: SessionGatewayInterface,
+        sessions: SessionSaver,
         issuer: TokenIssuer,
         ids: IdGenerator,
         clock: Clock,

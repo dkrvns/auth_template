@@ -1,21 +1,9 @@
 from typing import Protocol
-from uuid import UUID
 
-from auth_template.application.dto.security.refresh_token import RefreshToken
-from auth_template.application.dto.session.auth_session import AuthSession
+from auth_template.application.ports.session.reader import SessionReader
+from auth_template.application.ports.session.saver import SessionSaver
+from auth_template.application.ports.session.updater import SessionUpdater
 
 
-class SessionGatewayInterface(Protocol):
-    async def save(self, session: AuthSession, token: RefreshToken) -> None: ...
-
-    async def get(
-        self, session_id: UUID, *, lock: bool = False
-    ) -> AuthSession | None: ...
-
-    async def find_token(self, digest: str) -> RefreshToken | None: ...
-
-    async def rotate(self, old_digest: str, token: RefreshToken) -> None: ...
-
-    async def revoke(self, session_id: UUID) -> None: ...
-
-    async def revoke_for_user(self, user_id: UUID) -> None: ...
+class SessionGatewayInterface(SessionReader, SessionSaver, SessionUpdater, Protocol):
+    """Combined contract implemented by a session database gateway."""

@@ -105,6 +105,7 @@ src/auth_template/
       auth_policy.py
     ports/
       user/          reader.py, saver.py, updater.py
+      session/       reader.py, saver.py, updater.py
       security/      password_hasher.py, access_token_codec.py, refresh_token_generator.py
       clock.py
       committer.py
@@ -142,10 +143,10 @@ Application-контракты не импортируют FastAPI, SQLAlchemy �
 Порты и DTO импортируются из конкретных модулей в исходниках и тестах.
 `__init__.py` этих пакетов пустые, без совместимых реэкспортов.
 UserGateway и SessionGateway явно реализуют интерфейсы из
-`infrastructure/interfaces/gateways/`. Интерфейс пользователя объединяет узкие
-application-порты UserReader, UserSaver и UserUpdater. DI регистрирует одну
-реализацию для общего интерфейса и этих ролей. Auth handlers зависят от интерфейса
-сессии и нужных им узких пользовательских портов.
+`infrastructure/interfaces/gateways/`. Оба интерфейса объединяют узкие
+application-порты Reader, Saver и Updater для своей сущности. DI регистрирует
+одну реализацию для общего интерфейса и этих ролей. Auth handlers зависят от
+нужных им узких портов пользователя и сессии.
 Будущие бизнес-команды размещаются в `application/commands/<область>/`,
 атомарные действия — в `application/interactors/<область>/`.
 Текущие auth-операции не классифицируются как бизнес-команды.

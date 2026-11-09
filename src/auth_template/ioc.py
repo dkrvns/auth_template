@@ -29,6 +29,9 @@ from auth_template.application.ports.security.password_hasher import PasswordHas
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
 )
+from auth_template.application.ports.session.reader import SessionReader
+from auth_template.application.ports.session.saver import SessionSaver
+from auth_template.application.ports.session.updater import SessionUpdater
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.saver import UserSaver
 from auth_template.application.ports.user.updater import UserUpdater
@@ -130,7 +133,11 @@ class InfrastructureProvider(Provider):
         provides=AnyOf[UserGatewayInterface, UserReader, UserSaver, UserUpdater],
     )
     auth_sessions = provide(
-        SessionGateway, scope=Scope.REQUEST, provides=SessionGatewayInterface
+        SessionGateway,
+        scope=Scope.REQUEST,
+        provides=AnyOf[
+            SessionGatewayInterface, SessionReader, SessionSaver, SessionUpdater
+        ],
     )
     committer = provide(SqlCommitter, scope=Scope.REQUEST, provides=Committer)
 

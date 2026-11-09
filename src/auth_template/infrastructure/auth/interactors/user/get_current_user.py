@@ -3,17 +3,15 @@ from auth_template.application.dto.user.user import User
 from auth_template.application.errors import InvalidTokenError
 from auth_template.application.ports.clock import Clock
 from auth_template.application.ports.security.access_token_codec import AccessTokenCodec
+from auth_template.application.ports.session.reader import SessionReader
 from auth_template.application.ports.user.reader import UserReader
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
 
 
 class GetCurrentUserInteractor:
     def __init__(
         self,
         codec: AccessTokenCodec,
-        sessions: SessionGatewayInterface,
+        sessions: SessionReader,
         reader: UserReader,
         clock: Clock,
     ) -> None:
