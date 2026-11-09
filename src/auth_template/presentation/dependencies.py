@@ -6,7 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from auth_template.application.dto import Principal, User
 from auth_template.application.errors import InvalidTokenError
-from auth_template.application.ports import RateLimiter
+from auth_template.application.ports.rate_limiter import RateLimiter
 from auth_template.application.use_cases import GetCurrentUserInteractor
 from auth_template.config import AuthConfig
 

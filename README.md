@@ -97,6 +97,14 @@ app.example.com и api.example.com. Для разных sites этот режи�
 ```text
 src/auth_template/
   application/       DTO, ошибки, Protocol-порты, отдельные use cases
+    ports/
+      user/          reader.py, saver.py, updater.py
+      session/       repository.py
+      security/      password_hasher.py, access_token_codec.py, refresh_token_generator.py
+      clock.py
+      committer.py
+      id_generator.py
+      rate_limiter.py
   infrastructure/    ORM, gateways, Argon2/JWT adapters, rate limiter
   presentation/      schemas, маршруты, зависимости, cookies/CSRF, ASGI boundary
   config.py          настройки окружения
@@ -107,6 +115,8 @@ src/auth_template/
 Auth — generic subdomain. По требованию проекта используется собственная
 реализация с transaction scripts и портами, без избыточной доменной модели.
 Application не импортирует FastAPI, SQLAlchemy или Pydantic.
+Исходники импортируют порты из конкретных модулей; `ports/__init__.py` сохраняет
+публичные импорты для существующих потребителей и тестов.
 Осознанное исключение из общего CQRS-правила: login/refresh возвращают
 TokenPairDTO, поскольку это результат выдачи credentials, а не CRUD-команда.
 

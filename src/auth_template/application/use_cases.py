@@ -17,18 +17,18 @@ from auth_template.application.errors import (
     PasswordChangeError,
     UserAlreadyExistsError,
 )
-from auth_template.application.ports import (
-    AccessTokenCodec,
-    Clock,
-    Committer,
-    IdGenerator,
-    PasswordHasher,
+from auth_template.application.ports.clock import Clock
+from auth_template.application.ports.committer import Committer
+from auth_template.application.ports.id_generator import IdGenerator
+from auth_template.application.ports.security.access_token_codec import AccessTokenCodec
+from auth_template.application.ports.security.password_hasher import PasswordHasher
+from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
-    SessionRepository,
-    UserReader,
-    UserSaver,
-    UserUpdater,
 )
+from auth_template.application.ports.session.repository import SessionRepository
+from auth_template.application.ports.user.reader import UserReader
+from auth_template.application.ports.user.saver import UserSaver
+from auth_template.application.ports.user.updater import UserUpdater
 
 
 class SignUpCommand:

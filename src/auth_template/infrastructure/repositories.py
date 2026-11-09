@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from auth_template.application.dto import AuthSession, RefreshToken, User
 from auth_template.application.errors import UserAlreadyExistsError
-from auth_template.application.ports import Clock
+from auth_template.application.ports.clock import Clock
 from auth_template.config import AuthConfig
 from auth_template.infrastructure.models import (
     AuthSessionModel,
