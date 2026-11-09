@@ -5,15 +5,17 @@ from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
 )
-from auth_template.application.ports.session.gateway import SessionGateway
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
+from auth_template.infrastructure.interfaces.gateways.session import (
+    SessionGatewayInterface,
+)
 
 
 class RefreshHandler:
     def __init__(
         self,
-        sessions: SessionGateway,
+        sessions: SessionGatewayInterface,
         reader: UserReader,
         generator: RefreshTokenGenerator,
         issuer: TokenIssuer,

@@ -5,7 +5,7 @@ from auth_template.application.dto.security.refresh_token import RefreshToken
 from auth_template.application.dto.session.auth_session import AuthSession
 
 
-class SessionGateway(Protocol):
+class SessionGatewayInterface(Protocol):
     async def save(self, session: AuthSession, token: RefreshToken) -> None: ...
 
     async def get(

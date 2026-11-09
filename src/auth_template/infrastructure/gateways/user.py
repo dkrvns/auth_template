@@ -1,3 +1,4 @@
+from typing import override
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -6,19 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_template.application.dto.user.user import User
 from auth_template.application.errors import UserAlreadyExistsError
+from auth_template.infrastructure.interfaces.gateways.user import UserGatewayInterface
 from auth_template.infrastructure.models import UserModel
 
 
-class UserGateway:
+class UserGateway(UserGatewayInterface):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    @override
     async def get_by_email(self, email: str) -> User | None:
         row = await self._session.scalar(
             select(UserModel).where(UserModel.email == email)
         )
         return self._to_entity(row) if row else None
 
+    @override
     async def get_by_id(self, user_id: UUID, *, lock: bool = False) -> User | None:
         query = select(UserModel).where(UserModel.id == user_id)
         if lock:
@@ -26,6 +30,7 @@ class UserGateway:
         row = await self._session.scalar(query)
         return self._to_entity(row) if row else None
 
+    @override
     async def save(self, user: User) -> None:
         query = (
             pg_insert(UserModel)
@@ -41,6 +46,7 @@ class UserGateway:
         if await self._session.scalar(query) is None:
             raise UserAlreadyExistsError
 
+    @override
     async def set_password(self, user_id: UUID, password_hash: str) -> None:
         await self._session.execute(
             update(UserModel)

@@ -17,3 +17,6 @@ modules or re-export aggregators to preserve obsolete import paths.
 Use gateway terminology for database access in this project; keep each gateway
 implementation in its own infrastructure/gateways module. Transaction committers
 and rate limiters belong in separate modules rather than gateway aggregators.
+User and session gateway implementations must explicitly implement their contracts
+from infrastructure/interfaces/gateways. Preserve narrow application ports where
+consumers only need a subset of the gateway operations.
