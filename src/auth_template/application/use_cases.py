@@ -1,16 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 
-from auth_template.application.dto import (
-    AuthPolicy,
-    AuthSession,
-    ChangePasswordDTO,
-    CredentialsDTO,
-    Principal,
-    RefreshToken,
-    TokenPairDTO,
-    User,
-)
+from auth_template.application.dto.auth_policy import AuthPolicy
+from auth_template.application.dto.principal import Principal
+from auth_template.application.dto.security.refresh_token import RefreshToken
+from auth_template.application.dto.security.token_pair import TokenPairDTO
+from auth_template.application.dto.session.auth_session import AuthSession
+from auth_template.application.dto.user.change_password import ChangePasswordDTO
+from auth_template.application.dto.user.credentials import CredentialsDTO
+from auth_template.application.dto.user.user import User
 from auth_template.application.errors import (
     InvalidCredentialsError,
     InvalidTokenError,

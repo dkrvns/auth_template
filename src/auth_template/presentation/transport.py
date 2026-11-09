@@ -1,6 +1,6 @@
 from fastapi import Response
 
-from auth_template.application.dto import TokenPairDTO
+from auth_template.application.dto.security.token_pair import TokenPairDTO
 from auth_template.config import AuthConfig
 
 

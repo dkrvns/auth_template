@@ -97,6 +97,12 @@ app.example.com и api.example.com. Для разных sites этот режи�
 ```text
 src/auth_template/
   application/       DTO, ошибки, Protocol-порты, отдельные use cases
+    dto/
+      user/          user.py, credentials.py, change_password.py
+      session/       auth_session.py
+      security/      refresh_token.py, token_pair.py
+      principal.py
+      auth_policy.py
     ports/
       user/          reader.py, saver.py, updater.py
       session/       repository.py
@@ -117,6 +123,8 @@ Auth — generic subdomain. По требованию проекта испол�
 Application не импортирует FastAPI, SQLAlchemy или Pydantic.
 Исходники импортируют порты из конкретных модулей; `ports/__init__.py` сохраняет
 публичные импорты для существующих потребителей и тестов.
+DTO также импортируются из конкретных модулей; `dto/__init__.py` сохраняет
+совместимость существующих импортов.
 Осознанное исключение из общего CQRS-правила: login/refresh возвращают
 TokenPairDTO, поскольку это результат выдачи credentials, а не CRUD-команда.
 

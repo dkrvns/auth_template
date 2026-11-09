@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from auth_template.application.dto import User
+from auth_template.application.dto.user.user import User
 
 
 class UserSaver(Protocol):

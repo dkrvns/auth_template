@@ -1,7 +1,8 @@
 from typing import Protocol
 from uuid import UUID
 
-from auth_template.application.dto import AuthSession, RefreshToken
+from auth_template.application.dto.security.refresh_token import RefreshToken
+from auth_template.application.dto.session.auth_session import AuthSession
 
 
 class SessionRepository(Protocol):

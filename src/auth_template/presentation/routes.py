@@ -1,7 +1,8 @@
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends, Request, Response, status
 
-from auth_template.application.dto import ChangePasswordDTO, CredentialsDTO
+from auth_template.application.dto.user.change_password import ChangePasswordDTO
+from auth_template.application.dto.user.credentials import CredentialsDTO
 from auth_template.application.errors import InvalidTokenError
 from auth_template.application.use_cases import (
     ChangePasswordCommand,

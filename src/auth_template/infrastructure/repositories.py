@@ -5,7 +5,9 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from auth_template.application.dto import AuthSession, RefreshToken, User
+from auth_template.application.dto.security.refresh_token import RefreshToken
+from auth_template.application.dto.session.auth_session import AuthSession
+from auth_template.application.dto.user.user import User
 from auth_template.application.errors import UserAlreadyExistsError
 from auth_template.application.ports.clock import Clock
 from auth_template.config import AuthConfig

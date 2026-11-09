@@ -1,7 +1,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from auth_template.application.dto import User
+from auth_template.application.dto.user.user import User
 
 
 class UserReader(Protocol):

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from auth_template.application.dto import AuthPolicy
+from auth_template.application.dto.auth_policy import AuthPolicy
 from auth_template.application.ports.clock import Clock
 from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.id_generator import IdGenerator

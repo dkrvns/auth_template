@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from auth_template.application.dto import Principal
+from auth_template.application.dto.principal import Principal
 
 
 class AccessTokenCodec(Protocol):

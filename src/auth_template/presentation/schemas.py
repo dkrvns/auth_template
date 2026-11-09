@@ -3,7 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 
-from auth_template.application.dto import TokenPairDTO, User
+from auth_template.application.dto.security.token_pair import TokenPairDTO
+from auth_template.application.dto.user.user import User
 
 type Password = Annotated[SecretStr, Field(min_length=12, max_length=128)]
 type RawToken = Annotated[SecretStr, Field(min_length=32, max_length=256)]

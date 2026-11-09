@@ -7,7 +7,7 @@ import anyio
 import jwt
 from pwdlib import PasswordHash
 
-from auth_template.application.dto import Principal
+from auth_template.application.dto.principal import Principal
 from auth_template.application.errors import InvalidTokenError
 from auth_template.config import AuthConfig
 
