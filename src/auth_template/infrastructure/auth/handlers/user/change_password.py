@@ -5,7 +5,7 @@ from auth_template.application.errors import (
 )
 from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.security.password_hasher import PasswordHasher
-from auth_template.application.ports.session.repository import SessionRepository
+from auth_template.application.ports.session.gateway import SessionGateway
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.updater import UserUpdater
 
@@ -16,7 +16,7 @@ class ChangePasswordHandler:
         reader: UserReader,
         updater: UserUpdater,
         hasher: PasswordHasher,
-        sessions: SessionRepository,
+        sessions: SessionGateway,
         committer: Committer,
     ) -> None:
         self._reader = reader

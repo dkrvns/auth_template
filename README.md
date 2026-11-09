@@ -105,13 +105,18 @@ src/auth_template/
       auth_policy.py
     ports/
       user/          reader.py, saver.py, updater.py
-      session/       repository.py
+      session/       gateway.py
       security/      password_hasher.py, access_token_codec.py, refresh_token_generator.py
       clock.py
       committer.py
       id_generator.py
       rate_limiter.py
   infrastructure/    ORM, gateways, Argon2/JWT adapters, rate limiter
+    gateways/
+      user.py
+      session.py
+    committer.py
+    rate_limiter.py
     auth/
       handlers/
         registration/sign_up.py

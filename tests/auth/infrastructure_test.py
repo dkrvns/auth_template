@@ -115,7 +115,7 @@ async def test_concurrent_password_change_and_login(
 async def test_rate_limiter_shares_state_between_instances(
     test_config: Config, engine: AsyncEngine
 ) -> None:
-    from auth_template.infrastructure.repositories import PostgresRateLimiter
+    from auth_template.infrastructure.rate_limiter import PostgresRateLimiter
     from auth_template.infrastructure.security import utc_now
 
     config = test_config.auth.model_copy(update={'requests_per_minute': 2})

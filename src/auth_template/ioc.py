@@ -29,7 +29,9 @@ from auth_template.application.ports.security.password_hasher import PasswordHas
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
 )
-from auth_template.application.ports.session.repository import SessionRepository
+from auth_template.application.ports.session.gateway import (
+    SessionGateway as SessionGatewayPort,
+)
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.saver import UserSaver
 from auth_template.application.ports.user.updater import UserUpdater
@@ -47,12 +49,10 @@ from auth_template.infrastructure.auth.interactors.user.get_current_user import 
     GetCurrentUserInteractor,
 )
 from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
-from auth_template.infrastructure.repositories import (
-    PostgresRateLimiter,
-    SessionGateway,
-    SqlCommitter,
-    UserGateway,
-)
+from auth_template.infrastructure.committer import SqlCommitter
+from auth_template.infrastructure.gateways.session import SessionGateway
+from auth_template.infrastructure.gateways.user import UserGateway
+from auth_template.infrastructure.rate_limiter import PostgresRateLimiter
 from auth_template.infrastructure.security import (
     ArgonPasswordHasher,
     JwtAccessTokenCodec,
@@ -129,7 +129,7 @@ class InfrastructureProvider(Provider):
         provides=AnyOf[UserReader, UserSaver, UserUpdater],
     )
     auth_sessions = provide(
-        SessionGateway, scope=Scope.REQUEST, provides=SessionRepository
+        SessionGateway, scope=Scope.REQUEST, provides=SessionGatewayPort
     )
     committer = provide(SqlCommitter, scope=Scope.REQUEST, provides=Committer)
 

@@ -14,3 +14,6 @@ group handlers by responsibility and keep token issuance there.
 Application must never import infrastructure, including through compatibility shims.
 Import from the defining modules directly; do not add import-only compatibility
 modules or re-export aggregators to preserve obsolete import paths.
+Use gateway terminology for database access in this project; keep each gateway
+implementation in its own infrastructure/gateways module. Transaction committers
+and rate limiters belong in separate modules rather than gateway aggregators.
