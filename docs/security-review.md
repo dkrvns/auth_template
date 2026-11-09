@@ -1,6 +1,6 @@
 # Проверка реализации
 
-Дата: 2026-11-09. Область: собственные auth use cases, HTTP/cookie transport,
+Дата: 2026-11-09. Область: собственные auth handlers, HTTP/cookie transport,
 криптографические adapters, SQLAlchemy/PostgreSQL, миграции и конфигурация.
 
 ## Инварианты

@@ -33,16 +33,20 @@ from auth_template.application.ports.session.repository import SessionRepository
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.saver import UserSaver
 from auth_template.application.ports.user.updater import UserUpdater
-from auth_template.application.use_cases import (
-    ChangePasswordCommand,
-    GetCurrentUserInteractor,
-    LogInCommand,
-    LogOutCommand,
-    RefreshCommand,
-    SignUpCommand,
-    TokenIssuer,
-)
 from auth_template.config import AuthConfig, Config
+from auth_template.infrastructure.auth.handlers.registration.sign_up import (
+    SignUpHandler,
+)
+from auth_template.infrastructure.auth.handlers.session.log_in import LogInHandler
+from auth_template.infrastructure.auth.handlers.session.log_out import LogOutHandler
+from auth_template.infrastructure.auth.handlers.session.refresh import RefreshHandler
+from auth_template.infrastructure.auth.handlers.user.change_password import (
+    ChangePasswordHandler,
+)
+from auth_template.infrastructure.auth.interactors.user.get_current_user import (
+    GetCurrentUserInteractor,
+)
+from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
 from auth_template.infrastructure.repositories import (
     PostgresRateLimiter,
     SessionGateway,
@@ -132,12 +136,12 @@ class InfrastructureProvider(Provider):
 
 class AuthProvider(Provider):
     issuer = provide(TokenIssuer, scope=Scope.REQUEST)
-    sign_up = provide(SignUpCommand, scope=Scope.REQUEST)
-    log_in = provide(LogInCommand, scope=Scope.REQUEST)
-    refresh = provide(RefreshCommand, scope=Scope.REQUEST)
+    sign_up = provide(SignUpHandler, scope=Scope.REQUEST)
+    log_in = provide(LogInHandler, scope=Scope.REQUEST)
+    refresh = provide(RefreshHandler, scope=Scope.REQUEST)
     current_user = provide(GetCurrentUserInteractor, scope=Scope.REQUEST)
-    log_out = provide(LogOutCommand, scope=Scope.REQUEST)
-    change_password = provide(ChangePasswordCommand, scope=Scope.REQUEST)
+    log_out = provide(LogOutHandler, scope=Scope.REQUEST)
+    change_password = provide(ChangePasswordHandler, scope=Scope.REQUEST)
 
 
 def create_container(config: Config, *overrides: Provider) -> AsyncContainer:

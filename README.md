@@ -96,7 +96,7 @@ app.example.com и api.example.com. Для разных sites этот режи�
 
 ```text
 src/auth_template/
-  application/       DTO, ошибки, Protocol-порты, отдельные use cases
+  application/       DTO, ошибки, Protocol-порты
     dto/
       user/          user.py, credentials.py, change_password.py
       session/       auth_session.py
@@ -112,6 +112,13 @@ src/auth_template/
       id_generator.py
       rate_limiter.py
   infrastructure/    ORM, gateways, Argon2/JWT adapters, rate limiter
+    auth/
+      handlers/
+        registration/sign_up.py
+        session/     log_in.py, refresh.py, log_out.py
+        user/change_password.py
+      interactors/user/get_current_user.py
+      tokens/issuer.py
   presentation/      schemas, маршруты, зависимости, cookies/CSRF, ASGI boundary
   config.py          настройки окружения
   ioc.py             связывание портов с адаптерами
@@ -119,18 +126,27 @@ src/auth_template/
 ```
 
 Auth — generic subdomain. По требованию проекта используется собственная
-реализация с transaction scripts и портами, без избыточной доменной модели.
-Application не импортирует FastAPI, SQLAlchemy или Pydantic.
+реализация с handlers и портами, без избыточной доменной модели.
+Signup, login, refresh, logout и смена пароля реализованы отдельными handlers
+в инфраструктуре. Проверка текущего пользователя — отдельный auth interactor.
+TokenIssuer находится в инфраструктуре: он собирает технические credentials,
+подписывает access через порт и генерирует refresh с техническими TTL.
+Application-контракты не импортируют FastAPI, SQLAlchemy или Pydantic.
 Исходники импортируют порты из конкретных модулей; `ports/__init__.py` сохраняет
 публичные импорты для существующих потребителей и тестов.
 DTO также импортируются из конкретных модулей; `dto/__init__.py` сохраняет
 совместимость существующих импортов.
-Осознанное исключение из общего CQRS-правила: login/refresh возвращают
-TokenPairDTO, поскольку это результат выдачи credentials, а не CRUD-команда.
+Будущие бизнес-команды размещаются в `application/commands/<область>/`,
+атомарные действия — в `application/interactors/<область>/`.
+Текущие auth-операции не классифицируются как бизнес-команды.
+`application/use_cases.py` содержит только совместимые экспорты старых имён:
+его импортирует существующий тест, менять который запрещено. Рабочий код
+импортирует handlers, interactor и TokenIssuer напрямую из инфраструктуры.
 
 Новые защищённые маршруты принимают `CurrentUser` из `presentation.dependencies`.
 Он предоставляет `(User, Principal)`. Используйте User.id при фильтрации ресурсов
-владельца; дополнительные права на объекты проверяйте в application use case.
+владельца; дополнительные права на объекты проверяйте в соответствующей
+application-команде или interactor.
 Для своей БД замените gateways, сохранив контракты application.ports,
 и зарегистрируйте их в ioc.py. ORM-модели не передаются в application.
 
