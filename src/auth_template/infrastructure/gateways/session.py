@@ -5,13 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_template.application.dto.security.refresh_token import RefreshToken
 from auth_template.application.dto.session.auth_session import AuthSession
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
+from auth_template.application.ports.session.reader import SessionReader
+from auth_template.application.ports.session.saver import SessionSaver
+from auth_template.application.ports.session.updater import SessionUpdater
 from auth_template.infrastructure.models import AuthSessionModel, RefreshTokenModel
 
 
-class SessionGateway(SessionGatewayInterface):
+class SessionGateway(SessionReader, SessionSaver, SessionUpdater):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

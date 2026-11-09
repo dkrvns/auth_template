@@ -6,11 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_template.application.dto.user.user import User
 from auth_template.application.errors import UserAlreadyExistsError
-from auth_template.infrastructure.interfaces.gateways.user import UserGatewayInterface
+from auth_template.application.ports.user.reader import UserReader
+from auth_template.application.ports.user.saver import UserSaver
+from auth_template.application.ports.user.updater import UserUpdater
 from auth_template.infrastructure.models import UserModel
 
 
-class UserGateway(UserGatewayInterface):
+class UserGateway(UserReader, UserSaver, UserUpdater):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

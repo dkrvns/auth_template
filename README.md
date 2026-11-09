@@ -112,9 +112,6 @@ src/auth_template/
       id_generator.py
       rate_limiter.py
   infrastructure/    ORM, gateways, Argon2/JWT adapters, rate limiter
-    interfaces/gateways/
-      user.py        UserGatewayInterface
-      session.py     SessionGatewayInterface
     gateways/
       user.py
       session.py
@@ -142,11 +139,9 @@ TokenIssuer находится в инфраструктуре: он собир�
 Application-контракты не импортируют FastAPI, SQLAlchemy или Pydantic.
 Порты и DTO импортируются из конкретных модулей в исходниках и тестах.
 `__init__.py` этих пакетов пустые, без совместимых реэкспортов.
-UserGateway и SessionGateway явно реализуют интерфейсы из
-`infrastructure/interfaces/gateways/`. Оба интерфейса объединяют узкие
-application-порты Reader, Saver и Updater для своей сущности. DI регистрирует
-одну реализацию для общего интерфейса и этих ролей. Auth handlers зависят от
-нужных им узких портов пользователя и сессии.
+UserGateway и SessionGateway напрямую наследуют узкие application-порты
+Reader, Saver и Updater своей сущности. DI регистрирует один экземпляр
+реализации для всех её ролей. Auth handlers зависят от нужных им узких портов.
 Будущие бизнес-команды размещаются в `application/commands/<область>/`,
 атомарные действия — в `application/interactors/<область>/`.
 Текущие auth-операции не классифицируются как бизнес-команды.
@@ -157,8 +152,7 @@ Application не импортирует инфраструктуру, в том 
 Он предоставляет `(User, Principal)`. Используйте User.id при фильтрации ресурсов
 владельца; дополнительные права на объекты проверяйте в соответствующей
 application-команде или interactor.
-Для своей БД замените gateways, сохранив контракты application.ports и
-infrastructure.interfaces.gateways,
+Для своей БД замените gateways, сохранив контракты application.ports,
 и зарегистрируйте их в ioc.py. ORM-модели не передаются в application.
 
 Пароль обновляется и сессии отзываются в одной транзакции. Login, refresh и

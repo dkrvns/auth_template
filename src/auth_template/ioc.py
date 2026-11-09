@@ -52,10 +52,6 @@ from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
 from auth_template.infrastructure.committer import SqlCommitter
 from auth_template.infrastructure.gateways.session import SessionGateway
 from auth_template.infrastructure.gateways.user import UserGateway
-from auth_template.infrastructure.interfaces.gateways.session import (
-    SessionGatewayInterface,
-)
-from auth_template.infrastructure.interfaces.gateways.user import UserGatewayInterface
 from auth_template.infrastructure.rate_limiter import PostgresRateLimiter
 from auth_template.infrastructure.security import (
     ArgonPasswordHasher,
@@ -130,14 +126,12 @@ class InfrastructureProvider(Provider):
     users = provide(
         UserGateway,
         scope=Scope.REQUEST,
-        provides=AnyOf[UserGatewayInterface, UserReader, UserSaver, UserUpdater],
+        provides=AnyOf[UserReader, UserSaver, UserUpdater],
     )
     auth_sessions = provide(
         SessionGateway,
         scope=Scope.REQUEST,
-        provides=AnyOf[
-            SessionGatewayInterface, SessionReader, SessionSaver, SessionUpdater
-        ],
+        provides=AnyOf[SessionReader, SessionSaver, SessionUpdater],
     )
     committer = provide(SqlCommitter, scope=Scope.REQUEST, provides=Committer)
 
