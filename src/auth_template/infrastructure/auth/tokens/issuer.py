@@ -5,6 +5,7 @@ from auth_template.application.dto.principal import Principal
 from auth_template.application.dto.security.refresh_token import RefreshToken
 from auth_template.application.dto.security.token_pair import TokenPairDTO
 from auth_template.application.dto.session.auth_session import AuthSession
+from auth_template.application.errors import InvalidTokenError
 from auth_template.application.ports.security.access_token_codec import AccessTokenCodec
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
@@ -25,6 +26,8 @@ class TokenIssuer:
     def issue(
         self, session: AuthSession, now: datetime
     ) -> tuple[TokenPairDTO, RefreshToken]:
+        if session.id is None or session.user_id is None or session.expires_at is None:
+            raise InvalidTokenError
         raw = self._generator.generate()
         access_expires_at = min(now + self._policy.access_ttl, session.expires_at)
         pair = TokenPairDTO(

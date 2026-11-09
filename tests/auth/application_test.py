@@ -29,7 +29,7 @@ def sign_up() -> SignUpCommand:
 
 async def test_sign_up_saves_normalized_user(sign_up: SignUpCommand) -> None:
     user_id = uuid7()
-    sign_up._reader.get_by_email.return_value = None
+    sign_up._reader.get_by_email.return_value = User()
     sign_up._hasher.hash.return_value = 'encoded-password'
     sign_up._ids.return_value = user_id
     dto = CredentialsDTO(email=' User@Example.com ', password='Long password 42!')

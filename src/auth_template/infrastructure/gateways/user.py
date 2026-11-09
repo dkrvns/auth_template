@@ -16,18 +16,18 @@ class UserGateway(UserReader, UserSaver, UserUpdater):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_email(self, email: str) -> User | None:
+    async def get_by_email(self, email: str) -> User:
         row = await self._session.scalar(
             select(UserModel).where(UserModel.email == email)
         )
-        return self._to_entity(row) if row else None
+        return self._to_entity(row) if row else User()
 
-    async def get_by_id(self, user_id: UUID, *, lock: bool = False) -> User | None:
+    async def get_by_id(self, user_id: UUID, *, lock: bool = False) -> User:
         query = select(UserModel).where(UserModel.id == user_id)
         if lock:
             query = query.with_for_update().execution_options(populate_existing=True)
         row = await self._session.scalar(query)
-        return self._to_entity(row) if row else None
+        return self._to_entity(row) if row else User()
 
     async def save(self, user: User) -> None:
         query = (

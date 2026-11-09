@@ -21,3 +21,6 @@ Gateway implementations inherit their narrow Reader, Saver and Updater ports
 directly. Do not introduce intermediate interfaces just to combine these ports,
 or add Protocol as a base to concrete implementations.
 Do not add @override decorators to gateway implementations.
+Single-record gateway reads return the existing DTO type with empty fields when
+no record exists, never None or a separate empty-result type. Consumers check
+identity and required fields before using the result.

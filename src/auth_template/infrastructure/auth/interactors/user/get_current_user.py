@@ -24,13 +24,14 @@ class GetCurrentUserInteractor:
         principal = self._codec.decode(access_token)
         session = await self._sessions.get(principal.session_id)
         if (
-            session is None
+            session.id is None
             or session.user_id != principal.user_id
             or session.is_revoked
+            or session.expires_at is None
             or session.expires_at <= self._clock()
         ):
             raise InvalidTokenError
         user = await self._reader.get_by_id(principal.user_id)
-        if user is None or not user.is_active:
+        if user.id is None or not user.is_active:
             raise InvalidTokenError
         return user, principal

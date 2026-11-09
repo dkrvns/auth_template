@@ -33,7 +33,7 @@ class SessionGateway(SessionReader, SessionSaver, SessionUpdater):
             )
         )
 
-    async def get(self, session_id: UUID, *, lock: bool = False) -> AuthSession | None:
+    async def get(self, session_id: UUID, *, lock: bool = False) -> AuthSession:
         query = select(AuthSessionModel).where(AuthSessionModel.id == session_id)
         if lock:
             query = query.with_for_update().execution_options(populate_existing=True)
@@ -46,10 +46,10 @@ class SessionGateway(SessionReader, SessionSaver, SessionUpdater):
                 is_revoked=row.is_revoked,
             )
             if row
-            else None
+            else AuthSession()
         )
 
-    async def find_token(self, digest: str) -> RefreshToken | None:
+    async def find_token(self, digest: str) -> RefreshToken:
         row = await self._session.scalar(
             select(RefreshTokenModel)
             .where(RefreshTokenModel.digest == digest)
@@ -60,7 +60,7 @@ class SessionGateway(SessionReader, SessionSaver, SessionUpdater):
                 session_id=row.session_id, digest=row.digest, is_used=row.is_used
             )
             if row
-            else None
+            else RefreshToken()
         )
 
     async def rotate(self, old_digest: str, token: RefreshToken) -> None:

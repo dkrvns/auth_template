@@ -103,7 +103,7 @@ async def change_password(
 ) -> None:
     await handler(
         ChangePasswordDTO(
-            user_id=identity[0].id,
+            user_id=identity[1].user_id,
             current_password=body.current_password.get_secret_value(),
             new_password=body.new_password.get_secret_value(),
         )

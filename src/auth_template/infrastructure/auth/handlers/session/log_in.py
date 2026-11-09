@@ -35,16 +35,14 @@ class LogInHandler:
 
     async def __call__(self, dto: CredentialsDTO) -> TokenPairDTO:
         user = await self._reader.get_by_email(dto.email.strip().casefold())
-        valid = await self._hasher.verify(
-            dto.password, user.password_hash if user else None
-        )
-        if not valid or user is None or not user.is_active:
+        valid = await self._hasher.verify(dto.password, user.password_hash or None)
+        if not valid or user.id is None or not user.is_active:
             raise InvalidCredentialsError
 
         # Lock ordering is user -> session throughout login/refresh/password changes.
         locked = await self._reader.get_by_id(user.id, lock=True)
         if (
-            locked is None
+            locked.id is None
             or not locked.is_active
             or locked.password_hash != user.password_hash
         ):

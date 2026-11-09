@@ -27,7 +27,7 @@ class ChangePasswordHandler:
 
     async def __call__(self, dto: ChangePasswordDTO) -> None:
         user = await self._reader.get_by_id(dto.user_id, lock=True)
-        if user is None or not user.is_active:
+        if user.id is None or not user.is_active:
             raise InvalidCredentialsError
         if not await self._hasher.verify(dto.current_password, user.password_hash):
             raise InvalidCredentialsError

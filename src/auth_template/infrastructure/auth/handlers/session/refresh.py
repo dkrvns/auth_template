@@ -33,22 +33,24 @@ class RefreshHandler:
     async def __call__(self, raw_token: str) -> TokenPairDTO:
         digest = self._generator.digest(raw_token)
         token = await self._session_reader.find_token(digest)
-        if token is None:
+        if token.session_id is None:
             raise InvalidTokenError
         session = await self._session_reader.get(token.session_id)
-        if session is None:
+        if session.id is None or session.user_id is None:
             raise InvalidTokenError
         user = await self._reader.get_by_id(session.user_id, lock=True)
         session = await self._session_reader.get(session.id, lock=True)
         token = await self._session_reader.find_token(digest)
         now = self._clock()
         if (
-            user is None
+            user.id is None
             or not user.is_active
-            or session is None
+            or session.id is None
+            or session.user_id is None
             or session.is_revoked
+            or session.expires_at is None
             or session.expires_at <= now
-            or token is None
+            or token.session_id is None
         ):
             raise InvalidTokenError
         if token.is_used:

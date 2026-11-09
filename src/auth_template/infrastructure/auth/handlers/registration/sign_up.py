@@ -27,10 +27,12 @@ class SignUpHandler:
 
     async def __call__(self, dto: CredentialsDTO) -> UUID:
         email = dto.email.strip().casefold()
-        if await self._reader.get_by_email(email) is not None:
+        existing_user = await self._reader.get_by_email(email)
+        if existing_user.id is not None:
             raise UserAlreadyExistsError
         password_hash = await self._hasher.hash(dto.password)
-        user = User(id=self._ids(), email=email, password_hash=password_hash)
+        user_id = self._ids()
+        user = User(id=user_id, email=email, password_hash=password_hash)
         await self._saver.save(user)
         await self._committer.commit()
-        return user.id
+        return user_id
