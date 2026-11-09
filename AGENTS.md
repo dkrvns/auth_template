@@ -12,3 +12,5 @@ atomic application actions in application/interactors/<area>/; avoid generic
 use_cases modules. Authentication and registration belong to infrastructure/auth:
 group handlers by responsibility and keep token issuance there.
 Application must never import infrastructure, including through compatibility shims.
+Import from the defining modules directly; do not add import-only compatibility
+modules or re-export aggregators to preserve obsolete import paths.

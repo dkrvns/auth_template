@@ -3,15 +3,14 @@ from uuid import uuid7
 
 import pytest
 
-from auth_template.application.dto import CredentialsDTO, User
+from auth_template.application.dto.user.credentials import CredentialsDTO
+from auth_template.application.dto.user.user import User
 from auth_template.application.errors import UserAlreadyExistsError
-from auth_template.application.ports import (
-    Committer,
-    IdGenerator,
-    PasswordHasher,
-    UserReader,
-    UserSaver,
-)
+from auth_template.application.ports.committer import Committer
+from auth_template.application.ports.id_generator import IdGenerator
+from auth_template.application.ports.security.password_hasher import PasswordHasher
+from auth_template.application.ports.user.reader import UserReader
+from auth_template.application.ports.user.saver import UserSaver
 from auth_template.infrastructure.auth.handlers.registration.sign_up import (
     SignUpHandler as SignUpCommand,
 )
