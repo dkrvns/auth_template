@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import (
+from auth_template.infrastructure.db.models import (
     AuthSessionModel,
     RefreshTokenModel,
     UserModel,

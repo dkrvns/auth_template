@@ -9,7 +9,7 @@ from auth_template.application.errors import UserAlreadyExistsError
 from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.saver import UserSaver
 from auth_template.application.ports.user.updater import UserUpdater
-from auth_template.infrastructure.models import UserModel
+from auth_template.infrastructure.db.models import UserModel
 
 
 class UserGateway(UserReader, UserSaver, UserUpdater):

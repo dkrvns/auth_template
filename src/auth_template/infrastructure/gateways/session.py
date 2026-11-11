@@ -8,7 +8,7 @@ from auth_template.application.dto.session.auth_session import AuthSession
 from auth_template.application.ports.session.reader import SessionReader
 from auth_template.application.ports.session.saver import SessionSaver
 from auth_template.application.ports.session.updater import SessionUpdater
-from auth_template.infrastructure.models import AuthSessionModel, RefreshTokenModel
+from auth_template.infrastructure.db.models import AuthSessionModel, RefreshTokenModel
 
 
 class SessionGateway(SessionReader, SessionSaver, SessionUpdater):

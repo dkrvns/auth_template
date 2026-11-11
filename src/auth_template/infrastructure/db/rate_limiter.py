@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from auth_template.application.ports.clock import Clock
 from auth_template.config import AuthConfig
-from auth_template.infrastructure.models import RateLimitModel
+from auth_template.infrastructure.db.models import RateLimitModel
 
 
 class PostgresRateLimiter:

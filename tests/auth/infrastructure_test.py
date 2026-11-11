@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import UserModel
+from auth_template.infrastructure.db.models import UserModel
 from auth_template.main import create_app
 
 
@@ -115,8 +115,8 @@ async def test_concurrent_password_change_and_login(
 async def test_rate_limiter_shares_state_between_instances(
     test_config: Config, engine: AsyncEngine
 ) -> None:
-    from auth_template.infrastructure.rate_limiter import PostgresRateLimiter
-    from auth_template.infrastructure.security import utc_now
+    from auth_template.infrastructure.clock import utc_now
+    from auth_template.infrastructure.db.rate_limiter import PostgresRateLimiter
 
     config = test_config.auth.model_copy(update={'requests_per_minute': 2})
     sessions = async_sessionmaker(engine)

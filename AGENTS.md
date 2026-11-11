@@ -24,3 +24,6 @@ Do not add @override decorators to gateway implementations.
 Single-record gateway reads return the existing DTO type with empty fields when
 no record exists, never None or a separate empty-result type. Consumers check
 identity and required fields before using the result.
+Keep database models, the SQL committer and PostgreSQL rate limiter in
+infrastructure/db. Split security adapters into focused modules under
+infrastructure/security; keep the clock in infrastructure/clock.py.

@@ -115,8 +115,15 @@ src/auth_template/
     gateways/
       user.py
       session.py
-    committer.py
-    rate_limiter.py
+    db/
+      models.py
+      committer.py
+      rate_limiter.py
+    security/
+      password_hasher.py
+      access_token_codec.py
+      refresh_token_generator.py
+    clock.py
     auth/
       handlers/
         registration/sign_up.py

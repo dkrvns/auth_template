@@ -6,8 +6,8 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import AuthSessionModel
-from auth_template.infrastructure.security import utc_now
+from auth_template.infrastructure.clock import utc_now
+from auth_template.infrastructure.db.models import AuthSessionModel
 
 
 async def purge_expired_sessions() -> None:

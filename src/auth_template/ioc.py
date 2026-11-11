@@ -49,15 +49,15 @@ from auth_template.infrastructure.auth.interactors.user.get_current_user import 
     GetCurrentUserInteractor,
 )
 from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
-from auth_template.infrastructure.committer import SqlCommitter
+from auth_template.infrastructure.clock import utc_now
+from auth_template.infrastructure.db.committer import SqlCommitter
+from auth_template.infrastructure.db.rate_limiter import PostgresRateLimiter
 from auth_template.infrastructure.gateways.session import SessionGateway
 from auth_template.infrastructure.gateways.user import UserGateway
-from auth_template.infrastructure.rate_limiter import PostgresRateLimiter
-from auth_template.infrastructure.security import (
-    ArgonPasswordHasher,
-    JwtAccessTokenCodec,
+from auth_template.infrastructure.security.access_token_codec import JwtAccessTokenCodec
+from auth_template.infrastructure.security.password_hasher import ArgonPasswordHasher
+from auth_template.infrastructure.security.refresh_token_generator import (
     OpaqueRefreshTokenGenerator,
-    utc_now,
 )
 
 

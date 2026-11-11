@@ -9,7 +9,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import Base
+from auth_template.infrastructure.db.models import Base
 from auth_template.ioc import create_container
 from auth_template.main import create_app
 
