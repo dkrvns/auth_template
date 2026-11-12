@@ -27,3 +27,5 @@ identity and required fields before using the result.
 Keep database models, the SQL committer and PostgreSQL rate limiter in
 infrastructure/db. Split security adapters into focused modules under
 infrastructure/security; keep the clock in infrastructure/clock.py.
+Run the local project API, databases, migrations and checks exclusively in Docker.
+Do not start host Python services or host PostgreSQL as a fallback.

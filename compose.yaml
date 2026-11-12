@@ -1,4 +1,36 @@
+x-app: &app
+  image: auth-template:local
+  build:
+    context: .
+    target: runtime
+  env_file: .env
+
 services:
+  api:
+    <<: *app
+    environment:
+      HTTP__HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:${HTTP__PORT:-8000}:${HTTP__PORT:-8000}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('HTTP__PORT', '8000') + '/openapi.json', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 12
+  migrate:
+    <<: *app
+    command: ["uv", "run", "--no-dev", "alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
   postgres:
     image: postgres:16-alpine
     environment:
@@ -21,8 +53,6 @@ services:
       POSTGRES_USER: auth_test
       POSTGRES_PASSWORD: auth-test-only
       POSTGRES_DB: auth_test
-    ports:
-      - "127.0.0.1:5433:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
@@ -30,5 +60,16 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  tests:
+    image: auth-template:dev
+    build:
+      context: .
+      target: development
+    profiles: [test]
+    environment:
+      TEST_DATABASE_DSN: postgresql+psycopg://auth_test:auth-test-only@postgres_test:5432/auth_test
+    depends_on:
+      postgres_test:
+        condition: service_healthy
 volumes:
   postgres_data:

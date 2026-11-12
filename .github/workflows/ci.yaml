@@ -5,29 +5,14 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: auth_test
-          POSTGRES_PASSWORD: auth-test-only
-          POSTGRES_DB: auth_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U auth_test -d auth_test"
-          --health-interval 5s --health-timeout 3s --health-retries 20
-    env:
-      TEST_DATABASE_DSN: postgresql+psycopg://auth_test:auth-test-only@127.0.0.1:5432/auth_test
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.9.5"
-          enable-cache: true
-      - run: uv python install 3.14
-      - run: uv sync --locked
-      - run: uv run ruff format --check .
-      - run: uv run ruff check .
-      - run: uv run mypy src
-      - run: uv run pytest
-      - run: uv run pip-audit --progress-spinner off
+      - run: cp .env.example .env
+      - run: docker compose --profile test build tests
+      - run: docker compose run --rm tests uv run ruff format --check .
+      - run: docker compose run --rm tests uv run ruff check .
+      - run: docker compose run --rm tests uv run mypy src
+      - run: docker compose run --rm tests uv run pytest
+      - run: docker compose run --rm tests uv run pip-audit --progress-spinner off
+      - if: always()
+        run: docker compose --profile test down --volumes

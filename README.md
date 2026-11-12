@@ -28,24 +28,25 @@ login, logout, change password, разделение слоёв, порты и D
 ## Запуск
 
 ```bash
-uv python install 3.14
-uv sync
 cp .env.example .env
-uv run python -c 'import secrets; print(secrets.token_urlsafe(48))'
+docker run --rm python:3.14-slim python -c 'import secrets; print(secrets.token_urlsafe(48))'
 ```
 
 Вставьте сгенерированное значение в `AUTH__SECRET` в `.env`. Затем:
 
 ```bash
-docker compose up -d --wait postgres
-uv run alembic upgrade head
-uv run python -m auth_template
+docker compose up --build -d --wait api
 ```
 
 Swagger: http://127.0.0.1:8000/docs. Host, port и concurrency задаются через
 `HTTP__HOST`, `HTTP__PORT`, `HTTP__CONCURRENCY`. Все настройки — в `.env.example`.
+PostgreSQL, миграции и API работают в Docker. Compose сначала дожидается БД,
+затем применяет миграции и запускает API. Установки Python на хосте не требуется.
+DATABASE__DSN использует имя Compose-сервиса `postgres`, а не localhost.
 Пример credentials PostgreSQL предназначен для локальной разработки.
 `.env` не попадает в Git или Docker image.
+
+Остановка: `docker compose down`. Данные БД остаются в named volume.
 
 ## API
 
@@ -174,25 +175,24 @@ refresh сохраняется до истечения сессии. Срок с
 
 ## Проверки
 
-Нужна отдельная PostgreSQL БД с суффиксом `_test`. pytest намеренно читает
-TEST_DATABASE_DSN только из окружения процесса, не из `.env`.
-Тесты создают и удаляют таблицы в этой БД; она должна быть выделена только им.
+Compose-профиль test использует отдельную PostgreSQL БД с суффиксом `_test`.
+TEST_DATABASE_DSN передаётся в тестовый контейнер через environment.
+Тесты создают и удаляют таблицы только в этой БД; рабочая БД не используется.
 
 ```bash
-docker compose --profile test up -d --wait postgres_test
-export TEST_DATABASE_DSN='postgresql+psycopg://auth_test:auth-test-only@127.0.0.1:5433/auth_test'
-uv run ruff format .
-uv run ruff check --fix .
-uv run mypy src
-uv run pytest
-uv run pip-audit --progress-spinner off
+docker compose --profile test build tests
+docker compose run --rm tests uv run ruff format --check .
+docker compose run --rm tests uv run ruff check .
+docker compose run --rm tests uv run mypy src
+docker compose run --rm tests uv run pytest
+docker compose run --rm tests uv run pip-audit --progress-spinner off
 ```
 
 Покрыты HTTP, cookie/CSRF, поддельные/просроченные JWT и чужой sub,
 отзыв сессий, replay, гонки на независимых соединениях, общий rate limit,
 Alembic upgrade/downgrade/model consistency. Обычные DB-тесты используют внешнюю
 транзакцию и savepoints, конкурентные — настоящие commit и очистку данных.
-CI выполняет те же проверки с PostgreSQL service.
+CI выполняет те же проверки через Docker Compose.
 
 ## Эксплуатация
 
