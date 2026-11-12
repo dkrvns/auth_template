@@ -21,11 +21,12 @@
 
 - Ruff format/check: пройдены.
 - mypy strict для src: пройден.
-- pytest: 53 теста в Docker на Python 3.14.10 и отдельном PostgreSQL 16.15.
+- pytest: 54 теста в Docker на Python 3.14.10 и отдельном PostgreSQL 16.15.
   Проверены позитивные/негативные HTTP-сценарии, CSRF, поддельные JWT,
   чужой sub, отзыв, replay, реальные конкурентные транзакции, OpenAPI, HTTP 429.
   Отсутствующие записи возвращаются пустыми существующими DTO; отрицательные
   auth-сценарии проверяют отказ в доступе при незаполненных полях.
+  Пример credentials из OpenAPI проверен через signup, login и получение профиля.
 - Alembic: upgrade → проверка соответствия ORM → downgrade → upgrade,
   в выделенной тестовой схеме.
 - pip-audit 2.10.1: известных уязвимостей не найдено. Локальный auth-template

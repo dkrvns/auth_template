@@ -6,12 +6,29 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 from auth_template.application.dto.security.token_pair import TokenPairDTO
 from auth_template.application.dto.user.user import User
 
-type Password = Annotated[SecretStr, Field(min_length=12, max_length=128)]
+type Password = Annotated[
+    SecretStr,
+    Field(
+        min_length=12,
+        max_length=128,
+        description='Password must contain 12 to 128 characters.',
+    ),
+]
 type RawToken = Annotated[SecretStr, Field(min_length=32, max_length=256)]
 
 
 class CredentialsRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
+            'examples': [
+                {
+                    'email': 'learner@example.com',
+                    'password': 'Example-password-123!',
+                }
+            ]
+        },
+    )
     email: Annotated[EmailStr, Field(max_length=254)]
     password: Password
 

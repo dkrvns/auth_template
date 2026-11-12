@@ -62,6 +62,17 @@ DATABASE__DSN использует имя Compose-сервиса `postgres`, а 
 В Bearer-режиме передавайте `Authorization: Bearer <access_token>`.
 В Swagger используйте Authorize и вставьте access-токен после login.
 Login принимает JSON: это собственный API, а не OAuth2 token endpoint.
+Signup и login требуют валидный email и пароль длиной 12–128 символов.
+Swagger содержит корректный демонстрационный пример:
+
+```json
+{"email": "learner@example.com", "password": "Example-password-123!"}
+```
+
+Замените пример своим email и паролем. При `422 Invalid request` проверьте
+формат email, длину пароля и отсутствие лишних полей в JSON. При повторной
+регистрации того же email вернётся 409; для существующего аккаунта используйте login.
+
 Refresh принимает JSON: `{"refresh_token": "..."}`.
 Смена пароля определяет пользователя по авторизации, без email или чужого user_id.
 
