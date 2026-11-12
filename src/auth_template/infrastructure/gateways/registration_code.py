@@ -57,7 +57,7 @@ class RegistrationCodeGateway(
                     'attempts_left': code.attempts_left,
                 },
                 where=RegistrationCodeModel.sent_at
-                <= code.sent_at - timedelta(seconds=60),
+                <= code.sent_at - timedelta(seconds=45),
             )
             .returning(RegistrationCodeModel.email)
         )

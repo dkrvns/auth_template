@@ -35,6 +35,20 @@ function setBusy(value: boolean): void {
   main.setAttribute('aria-busy', String(value));
   main.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.disabled = value; });
   main.querySelectorAll<HTMLFieldSetElement>('fieldset').forEach(fieldset => { fieldset.disabled = value; });
+  updateCodeCountdown();
+}
+
+function updateCodeCountdown(): void {
+  const resend = document.querySelector<HTMLButtonElement>('#resend-code');
+  const initialSend = !user && mode === 'signup' && !document.querySelector('#registration-code')
+    ? document.querySelector<HTMLButtonElement>('#credentials-form button[type="submit"]') : null;
+  const button = resend ?? initialSend;
+  if (!button) return;
+  const seconds = api.registrationCodeWaitSeconds;
+  const label = resend ? 'Отправить код ещё раз' : 'Получить код';
+  button.disabled = busy || seconds > 0;
+  const text = initialSend ? button.querySelector('span') : button;
+  if (text) text.textContent = seconds > 0 ? `${label} (${seconds} с)` : label;
 }
 
 async function perform(action: () => Promise<void>): Promise<void> {
@@ -100,7 +114,7 @@ function renderAuth(): void {
         codeInput.setCustomValidity('');
         codeInput.focus();
       }
-      notify('Новый код отправлен. Повторная отправка доступна через минуту.');
+      notify('Новый код отправлен. Повторная отправка доступна через 45 секунд.');
     });
   });
   main.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => {
@@ -215,10 +229,14 @@ function render(): void {
   if (user) renderAccount();
   else renderAuth();
   attachPasswordToggles();
+  updateCodeCountdown();
 }
 
 render();
-window.setInterval(updateCountdown, 1000);
+window.setInterval(() => {
+  updateCountdown();
+  updateCodeCountdown();
+}, 1000);
 void api.checkConnection().then(() => {
   const connection = element<HTMLSpanElement>('#connection');
   connection.classList.add('online');

@@ -15,7 +15,7 @@ interface Session {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number = 0) {
+  constructor(message: string, readonly status: number = 0, readonly retryAfter: number = 0) {
     super(message);
   }
 }
@@ -78,12 +78,17 @@ async function request(path: string, method = 'GET', body?: object, token?: stri
       422: path === '/auth/change-password'
         ? 'Новый пароль должен отличаться от текущего и содержать 12–128 символов.'
         : 'Укажите корректный email и пароль длиной от 12 до 128 символов.',
-      429: 'Слишком много попыток. Подождите минуту и попробуйте снова.',
+      429: 'Слишком много попыток. Попробуйте позже.',
       503: path === '/auth/signup/code'
-        ? 'Не удалось отправить письмо. Подождите минуту и запросите новый код.'
+        ? 'Не удалось отправить письмо. Дождитесь окончания таймера и запросите новый код.'
         : 'Сервер временно недоступен. Попробуйте позже.',
     };
-    throw new ApiError(messages[response.status] ?? 'Сервер временно недоступен. Попробуйте позже.', response.status);
+    const retryAfter = Number(response.headers.get('Retry-After'));
+    throw new ApiError(
+      messages[response.status] ?? 'Сервер временно недоступен. Попробуйте позже.',
+      response.status,
+      Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 3600) : 0,
+    );
   }
   if (response.status === 204) return null;
   try {
@@ -96,16 +101,33 @@ async function request(path: string, method = 'GET', body?: object, token?: stri
 export class AuthClient {
   private session: Session | null = null;
   private refreshRequest: Promise<void> | null = null;
+  private registrationCodeRetryAt = 0;
 
   get isAuthenticated(): boolean { return this.session !== null; }
   get expiresAt(): number | null { return this.session?.expiresAt ?? null; }
+  get registrationCodeWaitSeconds(): number {
+    return Math.max(0, Math.ceil((this.registrationCodeRetryAt - Date.now()) / 1000));
+  }
 
   async checkConnection(): Promise<void> {
     await request('/openapi.json');
   }
 
   async sendRegistrationCode(email: string): Promise<void> {
-    await request('/auth/signup/code', 'POST', { email });
+    if (this.registrationCodeWaitSeconds > 0) {
+      throw new ApiError('Дождитесь окончания таймера перед повторной отправкой.');
+    }
+    // Also throttle unknown delivery outcomes: the SMTP server may have accepted mail.
+    this.registrationCodeRetryAt = Date.now() + 45_000;
+    try {
+      await request('/auth/signup/code', 'POST', { email });
+      this.registrationCodeRetryAt = Date.now() + 45_000;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429 && error.retryAfter > 0) {
+        this.registrationCodeRetryAt = Date.now() + error.retryAfter * 1000;
+      }
+      throw error;
+    }
   }
 
   async signup(credentials: Credentials, code: string): Promise<void> {
