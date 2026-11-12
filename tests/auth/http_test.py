@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.auth.registration_helpers import RegistrationMailbox, registration_payload
 
 from auth_template.config import Config
 from auth_template.infrastructure.db.models import (
@@ -16,9 +17,13 @@ from auth_template.infrastructure.db.models import (
 
 
 async def test_sign_up_user(
-    http_client: AsyncClient, credentials: dict[str, str], session: AsyncSession
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    session: AsyncSession,
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
-    response = await http_client.post('/auth/signup', json=credentials)
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    response = await http_client.post('/auth/signup', json=payload)
 
     assert response.status_code == 201
     user = await session.get(UserModel, UUID(response.json()['id']))
@@ -29,12 +34,17 @@ async def test_sign_up_user(
 
 
 async def test_sign_up_user_duplicate(
-    http_client: AsyncClient, credentials: dict[str, str]
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
-    assert (await http_client.post('/auth/signup', json=credentials)).status_code == 201
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    assert (await http_client.post('/auth/signup', json=payload)).status_code == 201
     credentials['email'] = credentials['email'].upper()
 
-    response = await http_client.post('/auth/signup', json=credentials)
+    response = await http_client.post(
+        '/auth/signup', json={**payload, 'email': credentials['email']}
+    )
 
     assert response.status_code == 409
     assert response.json() == {'detail': 'User already exists'}
@@ -56,7 +66,7 @@ async def test_sign_up_user_invalid_request(
     field: str,
     value: str | bool,
 ) -> None:
-    payload = {**credentials, field: value}
+    payload = {**credentials, 'code': '123456', field: value}
 
     response = await http_client.post('/auth/signup', json=payload)
 
@@ -83,12 +93,16 @@ async def test_log_in_user_returns_stored_identity(
     'existing_user', [False, True], ids=['unknown', 'wrong-password']
 )
 async def test_log_in_user_invalid_credentials(
-    http_client: AsyncClient, credentials: dict[str, str], existing_user: bool
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    existing_user: bool,
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
     if existing_user:
-        assert (
-            await http_client.post('/auth/signup', json=credentials)
-        ).status_code == 201
+        payload = await registration_payload(
+            http_client, registration_mailbox, credentials
+        )
+        assert (await http_client.post('/auth/signup', json=payload)).status_code == 201
     response = await http_client.post(
         '/auth/login', json={**credentials, 'password': 'Wrong password 42!'}
     )
@@ -324,6 +338,7 @@ async def test_openapi_schema_describes_authentication(
     assert response.status_code == 200
     assert set(response.json()['paths']) == {
         '/auth/signup',
+        '/auth/signup/code',
         '/auth/login',
         '/auth/refresh',
         '/auth/logout',

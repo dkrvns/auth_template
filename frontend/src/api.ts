@@ -65,6 +65,9 @@ async function request(path: string, method = 'GET', body?: object, token?: stri
   }
   if (!response.ok) {
     const messages: Record<number, string> = {
+      400: path === '/auth/signup'
+        ? 'Код неверен, истёк или закончились попытки. Проверьте письмо или запросите новый код.'
+        : 'Не удалось выполнить запрос. Проверьте данные.',
       401: path === '/auth/login'
         ? 'Неверный email или пароль. Проверьте данные и попробуйте снова.'
         : path === '/auth/change-password'
@@ -76,6 +79,9 @@ async function request(path: string, method = 'GET', body?: object, token?: stri
         ? 'Новый пароль должен отличаться от текущего и содержать 12–128 символов.'
         : 'Укажите корректный email и пароль длиной от 12 до 128 символов.',
       429: 'Слишком много попыток. Подождите минуту и попробуйте снова.',
+      503: path === '/auth/signup/code'
+        ? 'Не удалось отправить письмо. Подождите минуту и запросите новый код.'
+        : 'Сервер временно недоступен. Попробуйте позже.',
     };
     throw new ApiError(messages[response.status] ?? 'Сервер временно недоступен. Попробуйте позже.', response.status);
   }
@@ -98,8 +104,12 @@ export class AuthClient {
     await request('/openapi.json');
   }
 
-  async signup(credentials: Credentials): Promise<void> {
-    const response = await request('/auth/signup', 'POST', credentials);
+  async sendRegistrationCode(email: string): Promise<void> {
+    await request('/auth/signup/code', 'POST', { email });
+  }
+
+  async signup(credentials: Credentials, code: string): Promise<void> {
+    const response = await request('/auth/signup', 'POST', { ...credentials, code });
     if (!isRecord(response) || typeof response.id !== 'string') {
       throw new ApiError('Не удалось подтвердить регистрацию. Попробуйте войти с указанными данными.');
     }

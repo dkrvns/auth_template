@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('registration, profile, refresh, password change and logout', async ({ page }) => {
+test('registration, profile, refresh, password change and logout', async ({ page, request }) => {
   const email = `frontend-e2e-${crypto.randomUUID()}@example.com`;
   const password = 'Browser-test-password-123!';
   const newPassword = 'Updated-browser-password-456!';
@@ -11,7 +11,20 @@ test('registration, profile, refresh, password change and logout', async ({ page
   await page.getByRole('tab', { name: 'Создать аккаунт' }).click();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Пароль', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+  await page.getByRole('button', { name: 'Получить код', exact: true }).click();
+  await expect(page.getByLabel('Код из письма')).toBeVisible();
+  const mailbox = process.env.MAILPIT_BASE_URL ?? 'http://mailpit:8025';
+  const search = await request.get(`${mailbox}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
+  expect(search.ok()).toBe(true);
+  const messages = await search.json();
+  expect(messages.messages).toHaveLength(1);
+  const message = await request.get(`${mailbox}/api/v1/message/${messages.messages[0].ID}`);
+  expect(message.ok()).toBe(true);
+  const body = await message.json();
+  const code = body.Text.match(/\b[0-9]{6}\b/)?.[0];
+  expect(Boolean(code)).toBe(true);
+  await page.getByLabel('Код из письма').fill(code);
+  await page.getByRole('button', { name: 'Подтвердить и создать аккаунт' }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   await expect(page.getByText('Аккаунт создан. Добро пожаловать!')).toBeVisible();
 

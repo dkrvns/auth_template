@@ -1,7 +1,7 @@
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_validator
 
 from auth_template.application.dto.security.token_pair import TokenPairDTO
 from auth_template.application.dto.user.user import User
@@ -36,6 +36,34 @@ class CredentialsRequest(BaseModel):
 class RefreshRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     refresh_token: RawToken | None = None
+
+
+class RegistrationCodeRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    email: Annotated[EmailStr, Field(max_length=254)]
+
+
+class SignUpRequest(CredentialsRequest):
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
+            'examples': [
+                {
+                    'email': 'learner@example.com',
+                    'password': 'Example-password-123!',
+                    'code': '123456',
+                }
+            ]
+        },
+    )
+    code: Annotated[SecretStr, Field(min_length=6, max_length=6)]
+
+    @model_validator(mode='after')
+    def validate_code(self) -> Self:
+        raw = self.code.get_secret_value()
+        if not raw.isascii() or not raw.isdigit():
+            raise ValueError('Code must contain six digits')
+        return self
 
 
 class ChangePasswordRequest(BaseModel):

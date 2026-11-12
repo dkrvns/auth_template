@@ -20,6 +20,7 @@ let mode: 'login' | 'signup' = 'login';
 let section: 'profile' | 'security' = 'profile';
 let email = '';
 let busy = false;
+let codeEmail = '';
 
 function notify(message: string, kind: 'error' | 'success' = 'success'): void {
   const box = element<HTMLDivElement>('#message');
@@ -76,8 +77,32 @@ function attachPasswordToggles(): void {
 }
 
 function renderAuth(): void {
-  main.innerHTML = authView(mode);
+  main.innerHTML = authView(mode, codeEmail === email && email !== '');
   element<HTMLInputElement>('#email').value = email;
+  const emailInput = element<HTMLInputElement>('#email');
+  const codeInput = document.querySelector<HTMLInputElement>('#registration-code');
+  emailInput.addEventListener('input', () => {
+    if (codeInput) {
+      codeInput.value = '';
+      codeInput.setCustomValidity(emailInput.value.trim() === codeEmail
+        ? '' : 'Email изменён. Запросите новый код кнопкой ниже.');
+    }
+  });
+  document.querySelector<HTMLButtonElement>('#resend-code')?.addEventListener('click', () => {
+    const currentEmail = emailInput.value.trim();
+    if (!emailInput.reportValidity()) return;
+    void perform(async () => {
+      await api.sendRegistrationCode(currentEmail);
+      codeEmail = currentEmail;
+      email = currentEmail;
+      if (codeInput) {
+        codeInput.value = '';
+        codeInput.setCustomValidity('');
+        codeInput.focus();
+      }
+      notify('Новый код отправлен. Повторная отправка доступна через минуту.');
+    });
+  });
   main.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => {
     button.addEventListener('click', () => {
       email = element<HTMLInputElement>('#email').value;
@@ -94,7 +119,21 @@ function renderAuth(): void {
     email = credentials.email;
     void perform(async () => {
       const signup = mode === 'signup';
-      if (signup) await api.signup(credentials);
+      if (signup) {
+        const code = document.querySelector<HTMLInputElement>('#registration-code');
+        if (!code || codeEmail !== credentials.email) {
+          await api.sendRegistrationCode(credentials.email);
+          codeEmail = credentials.email;
+          // Preserve the password only in the current form while entering the code.
+          render();
+          element<HTMLInputElement>('#password').value = credentials.password;
+          element<HTMLInputElement>('#registration-code').focus();
+          notify('Код отправлен на указанный email. Введите 6 цифр из письма.');
+          return;
+        }
+        await api.signup(credentials, code.value);
+        codeEmail = '';
+      }
       try {
         user = await api.login(credentials);
       } catch (error) {

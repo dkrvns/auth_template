@@ -3,8 +3,12 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from auth_template.application.dto.user.change_password import ChangePasswordDTO
 from auth_template.application.dto.user.credentials import CredentialsDTO
+from auth_template.application.dto.user.sign_up import SignUpDTO
 from auth_template.application.errors import InvalidTokenError
 from auth_template.config import AuthConfig
+from auth_template.infrastructure.auth.handlers.registration.send_code import (
+    SendRegistrationCodeHandler,
+)
 from auth_template.infrastructure.auth.handlers.registration.sign_up import (
     SignUpHandler,
 )
@@ -20,6 +24,8 @@ from auth_template.presentation.schemas import (
     CreatedUserResponse,
     CredentialsRequest,
     RefreshRequest,
+    RegistrationCodeRequest,
+    SignUpRequest,
     TokenResponse,
     UserResponse,
 )
@@ -34,12 +40,25 @@ users_router = APIRouter(prefix='/users', tags=['users'])
 @auth_router.post('/signup', status_code=status.HTTP_201_CREATED)
 @inject
 async def sign_up(
-    body: CredentialsRequest, handler: FromDishka[SignUpHandler]
+    body: SignUpRequest, handler: FromDishka[SignUpHandler]
 ) -> CreatedUserResponse:
     user_id = await handler(
-        CredentialsDTO(email=str(body.email), password=body.password.get_secret_value())
+        SignUpDTO(
+            email=str(body.email),
+            password=body.password.get_secret_value(),
+            code=body.code.get_secret_value(),
+        )
     )
     return CreatedUserResponse(id=user_id)
+
+
+@auth_router.post('/signup/code', status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def send_registration_code(
+    body: RegistrationCodeRequest,
+    handler: FromDishka[SendRegistrationCodeHandler],
+) -> None:
+    await handler(str(body.email))
 
 
 @auth_router.post('/login')

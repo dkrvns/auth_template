@@ -9,6 +9,7 @@ __all__ = [
     'Base',
     'RateLimitModel',
     'RefreshTokenModel',
+    'RegistrationCodeModel',
     'UserModel',
 ]
 
@@ -61,3 +62,13 @@ class RateLimitModel(Base):
     client_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
     window: Mapped[int] = mapped_column(primary_key=True, index=True)
     requests: Mapped[int]
+
+
+class RegistrationCodeModel(Base):
+    __tablename__ = 'registration_codes'
+
+    email: Mapped[str] = mapped_column(String(254), primary_key=True)
+    digest: Mapped[str] = mapped_column(String(64))
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    attempts_left: Mapped[int]

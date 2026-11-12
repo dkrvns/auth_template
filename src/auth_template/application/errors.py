@@ -20,3 +20,15 @@ class UserAlreadyExistsError(ApplicationError):
 
 class PasswordChangeError(ApplicationError):
     message = 'New password must differ from current password'
+
+
+class InvalidRegistrationCodeError(ApplicationError):
+    message = 'Invalid or expired registration code'
+
+
+class RegistrationCodeRateLimitError(ApplicationError):
+    message = 'Registration code requested too recently'
+
+
+class MailDeliveryError(ApplicationError):
+    message = 'Unable to send registration email'

@@ -24,10 +24,17 @@ from auth_template.application.ports.clock import Clock
 from auth_template.application.ports.committer import Committer
 from auth_template.application.ports.id_generator import IdGenerator
 from auth_template.application.ports.rate_limiter import RateLimiter
+from auth_template.application.ports.registration.reader import RegistrationCodeReader
+from auth_template.application.ports.registration.saver import RegistrationCodeSaver
+from auth_template.application.ports.registration.sender import RegistrationCodeSender
+from auth_template.application.ports.registration.updater import RegistrationCodeUpdater
 from auth_template.application.ports.security.access_token_codec import AccessTokenCodec
 from auth_template.application.ports.security.password_hasher import PasswordHasher
 from auth_template.application.ports.security.refresh_token_generator import (
     RefreshTokenGenerator,
+)
+from auth_template.application.ports.security.registration_code_codec import (
+    RegistrationCodeCodec,
 )
 from auth_template.application.ports.session.reader import SessionReader
 from auth_template.application.ports.session.saver import SessionSaver
@@ -36,6 +43,9 @@ from auth_template.application.ports.user.reader import UserReader
 from auth_template.application.ports.user.saver import UserSaver
 from auth_template.application.ports.user.updater import UserUpdater
 from auth_template.config import AuthConfig, Config
+from auth_template.infrastructure.auth.handlers.registration.send_code import (
+    SendRegistrationCodeHandler,
+)
 from auth_template.infrastructure.auth.handlers.registration.sign_up import (
     SignUpHandler,
 )
@@ -52,12 +62,19 @@ from auth_template.infrastructure.auth.tokens.issuer import TokenIssuer
 from auth_template.infrastructure.clock import utc_now
 from auth_template.infrastructure.db.committer import SqlCommitter
 from auth_template.infrastructure.db.rate_limiter import PostgresRateLimiter
+from auth_template.infrastructure.gateways.registration_code import (
+    RegistrationCodeGateway,
+)
 from auth_template.infrastructure.gateways.session import SessionGateway
 from auth_template.infrastructure.gateways.user import UserGateway
+from auth_template.infrastructure.mail.smtp import SmtpRegistrationCodeSender
 from auth_template.infrastructure.security.access_token_codec import JwtAccessTokenCodec
 from auth_template.infrastructure.security.password_hasher import ArgonPasswordHasher
 from auth_template.infrastructure.security.refresh_token_generator import (
     OpaqueRefreshTokenGenerator,
+)
+from auth_template.infrastructure.security.registration_code_codec import (
+    HmacRegistrationCodeCodec,
 )
 
 
@@ -134,11 +151,25 @@ class InfrastructureProvider(Provider):
         provides=AnyOf[SessionReader, SessionSaver, SessionUpdater],
     )
     committer = provide(SqlCommitter, scope=Scope.REQUEST, provides=Committer)
+    registration_codes = provide(
+        RegistrationCodeGateway,
+        scope=Scope.REQUEST,
+        provides=AnyOf[
+            RegistrationCodeReader, RegistrationCodeSaver, RegistrationCodeUpdater
+        ],
+    )
+    registration_codec = provide(
+        HmacRegistrationCodeCodec, scope=Scope.APP, provides=RegistrationCodeCodec
+    )
+    mail_sender = provide(
+        SmtpRegistrationCodeSender, scope=Scope.APP, provides=RegistrationCodeSender
+    )
 
 
 class AuthProvider(Provider):
     issuer = provide(TokenIssuer, scope=Scope.REQUEST)
     sign_up = provide(SignUpHandler, scope=Scope.REQUEST)
+    send_registration_code = provide(SendRegistrationCodeHandler, scope=Scope.REQUEST)
     log_in = provide(LogInHandler, scope=Scope.REQUEST)
     refresh = provide(RefreshHandler, scope=Scope.REQUEST)
     current_user = provide(GetCurrentUserInteractor, scope=Scope.REQUEST)

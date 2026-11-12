@@ -41,6 +41,7 @@ async def test_migration_upgrade_downgrade_and_model_consistency(
             'auth_sessions',
             'refresh_tokens',
             'auth_rate_limits',
+            'registration_codes',
         }
         await asyncio.to_thread(command.downgrade, migration_config, 'base')
         async with migration_engine.connect() as connection:

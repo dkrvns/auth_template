@@ -11,7 +11,7 @@ function passwordField(id: string, label: string, autocomplete: string): string 
     <button type="button" class="password-toggle" data-password-target="${id}" aria-controls="${id}" aria-label="Показать пароль">Показать</button></span></div>`;
 }
 
-export function authView(mode: 'login' | 'signup'): string {
+export function authView(mode: 'login' | 'signup', codeSent = false): string {
   const signup = mode === 'signup';
   return `<section class="auth-layout">
     <div class="intro">
@@ -34,7 +34,8 @@ export function authView(mode: 'login' | 'signup'): string {
           <fieldset><label class="field" for="email"><span>Email</span><input id="email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" /></label>
           ${passwordField('password', 'Пароль', signup ? 'new-password' : 'current-password')}
           <p class="field-hint">От 12 до 128 символов. Можно использовать пробелы.</p>
-          <button class="button primary" type="submit"><span>${signup ? 'Создать аккаунт' : 'Войти в аккаунт'}</span>${icons.arrow}</button></fieldset>
+          ${signup && codeSent ? '<label class="field" for="registration-code"><span>Код из письма</span><input id="registration-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="6 цифр" /></label><p class="field-hint">Код действует 10 минут. После 5 неверных попыток запросите новый.</p><button id="resend-code" class="button secondary" type="button">Отправить код ещё раз</button>' : ''}
+          <button class="button primary" type="submit"><span>${signup ? codeSent ? 'Подтвердить и создать аккаунт' : 'Получить код' : 'Войти в аккаунт'}</span>${icons.arrow}</button></fieldset>
         </form>
         <div id="message" class="message" role="status" aria-live="polite" hidden></div>
         <p class="session-note">${icons.lock}<span>При обновлении страницы потребуется войти снова.</span></p>

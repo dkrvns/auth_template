@@ -12,6 +12,11 @@ from auth_template.config import Config
 from auth_template.infrastructure.db.models import Base
 from auth_template.ioc import create_container
 from auth_template.main import create_app
+from tests.auth.registration_helpers import (
+    MailOverrideProvider,
+    RegistrationMailbox,
+    registration_payload,
+)
 
 
 @pytest.fixture(scope='session')
@@ -80,10 +85,22 @@ class DatabaseOverrideProvider(Provider):
 
 
 @pytest.fixture
+def registration_mailbox() -> RegistrationMailbox:
+    return RegistrationMailbox()
+
+
+@pytest.fixture
 async def http_client(
-    test_config: Config, session: AsyncSession, engine: AsyncEngine
+    test_config: Config,
+    session: AsyncSession,
+    engine: AsyncEngine,
+    registration_mailbox: RegistrationMailbox,
 ) -> AsyncIterator[AsyncClient]:
-    container = create_container(test_config, DatabaseOverrideProvider(session, engine))
+    container = create_container(
+        test_config,
+        DatabaseOverrideProvider(session, engine),
+        MailOverrideProvider(registration_mailbox),
+    )
     app = create_app(test_config, container)
     async with (
         app.router.lifespan_context(app),
@@ -104,9 +121,12 @@ def credentials() -> dict[str, str]:
 
 @pytest.fixture
 async def token_pair(
-    http_client: AsyncClient, credentials: dict[str, str]
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> dict[str, str]:
-    response = await http_client.post('/auth/signup', json=credentials)
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    response = await http_client.post('/auth/signup', json=payload)
     assert response.status_code == 201
     response = await http_client.post('/auth/login', json=credentials)
     assert response.status_code == 200

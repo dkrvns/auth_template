@@ -13,8 +13,11 @@ from sqlalchemy.exc import OperationalError, TimeoutError
 from auth_template.application.errors import (
     ApplicationError,
     InvalidCredentialsError,
+    InvalidRegistrationCodeError,
     InvalidTokenError,
+    MailDeliveryError,
     PasswordChangeError,
+    RegistrationCodeRateLimitError,
     UserAlreadyExistsError,
 )
 from auth_template.config import Config
@@ -53,6 +56,13 @@ def create_app(
             code = status.HTTP_409_CONFLICT
         elif isinstance(exc, PasswordChangeError):
             code = status.HTTP_422_UNPROCESSABLE_CONTENT
+        elif isinstance(exc, InvalidRegistrationCodeError):
+            code = status.HTTP_400_BAD_REQUEST
+        elif isinstance(exc, RegistrationCodeRateLimitError):
+            code = status.HTTP_429_TOO_MANY_REQUESTS
+            headers['Retry-After'] = '60'
+        elif isinstance(exc, MailDeliveryError):
+            code = status.HTTP_503_SERVICE_UNAVAILABLE
         response = JSONResponse({'detail': error.message}, code, headers=headers)
         if isinstance(exc, InvalidTokenError) and settings.auth.transport == 'cookie':
             clear_tokens(response, settings.auth)
