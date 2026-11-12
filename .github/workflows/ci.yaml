@@ -16,3 +16,13 @@ jobs:
       - run: docker compose run --rm tests uv run pip-audit --progress-spinner off
       - if: always()
         run: docker compose --profile test down --volumes
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose --profile test build frontend frontend_checks
+      - run: docker compose run --rm --no-deps frontend_checks npm run check
+      - run: docker compose run --rm --no-deps frontend_checks npm audit
+      - if: always()
+        run: docker compose --profile test down --volumes

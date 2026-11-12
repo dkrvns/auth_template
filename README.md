@@ -35,10 +35,11 @@ docker run --rm python:3.14-slim python -c 'import secrets; print(secrets.token_
 Вставьте сгенерированное значение в `AUTH__SECRET` в `.env`. Затем:
 
 ```bash
-docker compose up --build -d --wait api
+docker compose up --build -d --wait frontend
 ```
 
-Swagger: http://127.0.0.1:8000/docs. Host, port и concurrency задаются через
+Интерфейс: http://127.0.0.1:3000. Swagger: http://127.0.0.1:8000/docs.
+FRONTEND_PORT меняет порт интерфейса. Host, port и concurrency API задаются через
 `HTTP__HOST`, `HTTP__PORT`, `HTTP__CONCURRENCY`. Все настройки — в `.env.example`.
 PostgreSQL, миграции и API работают в Docker. Compose сначала дожидается БД,
 затем применяет миграции и запускает API. Установки Python на хосте не требуется.
@@ -47,6 +48,32 @@ DATABASE__DSN использует имя Compose-сервиса `postgres`, а 
 `.env` не попадает в Git или Docker image.
 
 Остановка: `docker compose down`. Данные БД остаются в named volume.
+
+## Фронтенд
+
+`frontend/` — TypeScript в strict-режиме, Vite и обычные HTML/CSS, без UI-фреймворка.
+Интерфейс поддерживает регистрацию с автоматическим входом, профиль, обновление
+сессии, смену пароля и выход. Требуется `AUTH__TRANSPORT=bearer` (по умолчанию).
+
+Браузер обращается к `/api/` на том же origin. Nginx в Docker проксирует запросы
+в API; дополнительная настройка CORS не нужна. Токены хранятся только в памяти
+страницы, не записываются в localStorage/sessionStorage и не показываются в UI.
+После перезагрузки страницы нужно войти снова. Запросы refresh объединяются,
+чтобы параллельные действия не вызвали повторное использование refresh-токена.
+
+Исходники: `src/api.ts` — запросы и сессия; `src/views.ts` — разметка;
+`src/main.ts` — события и состояние интерфейса; `src/style.css` — стили.
+
+```bash
+docker compose --profile test build frontend_checks frontend_e2e
+docker compose run --rm --no-deps frontend_checks npm run check
+docker compose run --rm --no-deps frontend_checks npm audit
+docker compose run --rm frontend_e2e
+```
+
+Браузерные тесты запускаются в Chromium внутри Docker и используют текущий API.
+Они создают отдельный учебный аккаунт с префиксом `frontend-e2e-`, меняют пароль
+только ему и завершают его сессию. Запускайте их только в локальном учебном окружении.
 
 ## API
 

@@ -6,6 +6,23 @@ x-app: &app
   env_file: .env
 
 services:
+  frontend:
+    image: auth-template:frontend
+    build:
+      context: ./frontend
+      target: runtime
+    environment:
+      BACKEND_PORT: ${HTTP__PORT:-8000}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
   api:
     <<: *app
     environment:
@@ -70,6 +87,25 @@ services:
       TEST_DATABASE_DSN: postgresql+psycopg://auth_test:auth-test-only@postgres_test:5432/auth_test
     depends_on:
       postgres_test:
+        condition: service_healthy
+  frontend_checks:
+    image: auth-template:frontend-checks
+    build:
+      context: ./frontend
+      target: check
+    profiles: [test]
+  frontend_e2e:
+    image: auth-template:frontend-e2e
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    profiles: [test]
+    init: true
+    shm_size: 512mb
+    environment:
+      FRONTEND_BASE_URL: http://frontend:8080
+    depends_on:
+      frontend:
         condition: service_healthy
 volumes:
   postgres_data:
