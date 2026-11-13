@@ -21,9 +21,9 @@ class SmtpRegistrationCodeSender:
             await anyio.to_thread.run_sync(
                 self._send, email, code, limiter=self._limiter
             )
-        except OSError, ValueError:
+        except (OSError, ValueError) as e:
             logger.warning('registration_mail_delivery_failed')
-            raise MailDeliveryError from None
+            raise MailDeliveryError from e
 
     def _send(self, email: str, code: str) -> None:
         config = self._config
