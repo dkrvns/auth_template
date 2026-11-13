@@ -1,0 +1,14 @@
+services:
+  api:
+    env_file: !override
+      - ${CI_ENV_FILE:-.env}
+    ports: !reset []
+  migrate:
+    env_file: !override
+      - ${CI_ENV_FILE:-.env}
+  frontend:
+    ports: !reset []
+  postgres:
+    ports: !reset []
+  mailpit:
+    ports: !reset []

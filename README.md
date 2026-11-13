@@ -49,6 +49,20 @@ DATABASE__DSN использует имя Compose-сервиса `postgres`, а 
 
 Остановка: `docker compose down`. Данные БД остаются в named volume.
 
+## CI/CD
+
+GitHub Actions запускает проверки при push в любую ветку и при PR в `master`
+или `main`. Backend job выполняет Ruff, mypy, pytest с PostgreSQL/SMTP и pip-audit;
+frontend job собирает production-образ, проверяет TypeScript и npm audit;
+browser job проверяет пользовательские сценарии через настоящий API и Mailpit.
+При push в `master`/`main` после всех проверок Docker-образы API и фронтенда
+сохраняются в Actions artifact на один день. Автоматический деплой на сервер
+не настроен: цель развёртывания и её credentials не заданы.
+
+`compose.ci.yaml` убирает публикацию портов и поддерживает `CI_ENV_FILE` для
+одноразовой конфигурации. Требуется Docker Compose 2.24.4+. Проверки используют
+отдельный Compose project и удаляют только свои временные volumes.
+
 ## Фронтенд
 
 `frontend/` — TypeScript в strict-режиме, Vite и обычные HTML/CSS, без UI-фреймворка.

@@ -165,3 +165,19 @@ ZAP и нагрузочная проверка почтовой отправки
 Итоговые проверки в Docker: сборка Vite, TypeScript strict, Ruff format/check,
 mypy и все 78 pytest прошли; 5 Playwright-сценариев прошли. Новых зависимостей
 или миграций нет. Gitleaks проверил diff; утечек не найдено.
+
+## CI/CD — 2026-11-13
+
+- Push в ветки и PR в master/main запускают отдельные Python, frontend и browser
+  jobs. Экспорт runtime-образов в Actions artifact разрешён только при успешном
+  push в master/main. Срок хранения — один день; деплой на сервер не задан.
+- Workflow имеет только contents:read, не использует pull_request_target,
+  не передаёт production secrets. Browser job генерирует временный auth key.
+- Compose override снимает все host-порты. Локальная проверка использовала
+  отдельный project, одноразовый env и собственные volumes; после проверки
+  это окружение удалено, исходные сервисы проекта остановлены, их данные сохранены.
+- Actionlint 1.7.7, Ruff format/check, mypy, 78 pytest, TypeScript и 5 браузерных
+  сценариев пройдены. Pip-audit и npm audit не нашли известных уязвимостей.
+- Сохранена пользовательская правка SMTP: перехват с `as e` и chaining ошибки.
+  Существующие тесты не изменялись. Состав пакетов и базовые образы не менялись;
+  замечания предыдущего image audit выше остаются применимыми.

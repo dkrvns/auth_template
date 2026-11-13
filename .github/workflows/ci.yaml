@@ -1,23 +1,47 @@
-name: Checks
-on: [push, pull_request]
+name: CI/CD
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: auth-template-ci
+  COMPOSE_FILE: compose.yaml:compose.ci.yaml
+
 jobs:
-  check:
+  backend:
+    name: Python checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
       - run: docker compose --profile test build tests
-      - run: docker compose run --rm tests uv run ruff format --check .
-      - run: docker compose run --rm tests uv run ruff check .
-      - run: docker compose run --rm tests uv run mypy src
-      - run: docker compose run --rm tests uv run pytest
-      - run: docker compose run --rm tests uv run pip-audit --progress-spinner off
+      - name: Format, lint and types
+        run: >-
+          docker compose run --rm tests sh -c
+          'uv run ruff format --check . && uv run ruff check . && uv run mypy src'
+      - name: PostgreSQL and SMTP tests
+        run: docker compose run --rm tests uv run pytest -q
+      - name: Audit Python dependencies
+        run: docker compose run --rm --no-deps tests uv run pip-audit --progress-spinner off
       - if: always()
-        run: docker compose --profile test down --volumes
+        run: docker compose --profile test down --volumes --remove-orphans
+
   frontend:
+    name: TypeScript and production build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
@@ -25,4 +49,41 @@ jobs:
       - run: docker compose run --rm --no-deps frontend_checks npm run check
       - run: docker compose run --rm --no-deps frontend_checks npm audit
       - if: always()
-        run: docker compose --profile test down --volumes
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  browser:
+    name: Browser authentication scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate disposable auth key
+        run: |
+          cp .env.example .env
+          docker run --rm python:3.14-slim python -c \
+            'import secrets; print("AUTH__SECRET=" + secrets.token_urlsafe(48))' >> .env
+      - run: docker compose --profile test build api frontend frontend_e2e
+      - run: docker compose up -d --wait --wait-timeout 120 frontend
+      - run: docker compose run --rm --no-deps frontend_e2e
+      - if: always()
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  package:
+    name: Deliver Docker images
+    needs: [backend, frontend, browser]
+    if: github.event_name == 'push' && contains(fromJSON('["refs/heads/master", "refs/heads/main"]'), github.ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build api frontend
+      - name: Export release images
+        run: |
+          docker image save auth-template:local auth-template:frontend | gzip > auth-template-images.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auth-template-images-${{ github.sha }}
+          path: auth-template-images.tar.gz
+          retention-days: 1
+          compression-level: 0
