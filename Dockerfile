@@ -16,5 +16,6 @@ COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini README.md ./
 RUN uv sync --locked --no-dev && useradd --uid 10001 --create-home app
+ENV UV_NO_SYNC=1
 USER 10001
 CMD ["uv", "run", "--no-dev", "python", "-m", "auth_template"]
