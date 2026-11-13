@@ -60,11 +60,15 @@ jobs:
       - name: Generate disposable auth key
         run: |
           cp .env.example .env
-          docker run --rm python:3.14-slim python -c \
-            'import secrets; print("AUTH__SECRET=" + secrets.token_urlsafe(48))' >> .env
+          auth_secret=$(docker run --rm python:3.14-slim python -c 'import secrets; print(secrets.token_urlsafe(48))')
+          echo "::add-mask::$auth_secret"
+          printf '\nAUTH__SECRET=%s\n' "$auth_secret" >> .env
       - run: docker compose --profile test build api frontend frontend_e2e
       - run: docker compose up -d --wait --wait-timeout 120 frontend
       - run: docker compose run --rm --no-deps frontend_e2e
+      - name: Startup diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail 100 migrate api frontend
       - if: always()
         run: docker compose --profile test down --volumes --remove-orphans
 
