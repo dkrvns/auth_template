@@ -6,7 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import Base
+from auth_template.infrastructure.db.models import Base
 
 
 def configure(connection: Connection | None = None) -> None:

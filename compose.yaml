@@ -1,4 +1,55 @@
+x-app: &app
+  image: auth-template:local
+  build:
+    context: .
+    target: runtime
+  env_file: .env
+
 services:
+  frontend:
+    image: auth-template:frontend
+    build:
+      context: ./frontend
+      target: runtime
+    environment:
+      BACKEND_PORT: ${HTTP__PORT:-8000}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  api:
+    <<: *app
+    environment:
+      HTTP__HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:${HTTP__PORT:-8000}:${HTTP__PORT:-8000}"
+    depends_on:
+      mailpit:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('HTTP__PORT', '8000') + '/openapi.json', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 12
+  migrate:
+    <<: *app
+    command: ["uv", "run", "--no-dev", "alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
   postgres:
     image: postgres:16-alpine
     environment:
@@ -14,6 +65,17 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"
+    environment:
+      MP_MAX_MESSAGES: 100
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
   postgres_test:
     image: postgres:16-alpine
     profiles: [test]
@@ -21,8 +83,6 @@ services:
       POSTGRES_USER: auth_test
       POSTGRES_PASSWORD: auth-test-only
       POSTGRES_DB: auth_test
-    ports:
-      - "127.0.0.1:5433:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
@@ -30,5 +90,50 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  tests:
+    image: auth-template:dev
+    build:
+      context: .
+      target: development
+    profiles: [test]
+    environment:
+      TEST_DATABASE_DSN: postgresql+psycopg://auth_test:auth-test-only@postgres_test:5432/auth_test
+      TEST_SMTP_HOST: mailpit_test
+      TEST_MAILPIT_URL: http://mailpit_test:8025
+    depends_on:
+      postgres_test:
+        condition: service_healthy
+      mailpit_test:
+        condition: service_healthy
+  mailpit_test:
+    image: axllent/mailpit:v1.33.1
+    profiles: [test]
+    environment:
+      MP_MAX_MESSAGES: 100
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  frontend_checks:
+    image: auth-template:frontend-checks
+    build:
+      context: ./frontend
+      target: check
+    profiles: [test]
+  frontend_e2e:
+    image: auth-template:frontend-e2e
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    profiles: [test]
+    init: true
+    shm_size: 512mb
+    environment:
+      FRONTEND_BASE_URL: http://frontend:8080
+      MAILPIT_BASE_URL: http://mailpit:8025
+    depends_on:
+      frontend:
+        condition: service_healthy
 volumes:
   postgres_data:

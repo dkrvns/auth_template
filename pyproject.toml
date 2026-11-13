@@ -61,3 +61,6 @@ python_version = "3.14"
 strict = true
 files = ["src"]
 plugins = ["pydantic.mypy"]
+
+[tool.pyright]
+pythonVersion = "3.14"

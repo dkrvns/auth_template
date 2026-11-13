@@ -56,6 +56,24 @@ class HttpConfig(BaseModel):
     concurrency: int = Field(default=100, ge=1, le=1000)
 
 
+class MailConfig(BaseModel):
+    host: str = Field(min_length=1)
+    port: int = Field(ge=1, le=65535)
+    sender: str = Field(min_length=3, max_length=254, pattern=r'^[^\s@]+@[^\s@]+$')
+    security: Literal['starttls', 'ssl', 'plain'] = 'starttls'
+    username: str = ''
+    password: SecretStr = SecretStr('')
+    timeout_seconds: int = Field(default=5, ge=1, le=10)
+
+    @model_validator(mode='after')
+    def validate_credentials(self) -> Self:
+        if bool(self.username) != bool(self.password.get_secret_value()):
+            raise ValueError('Set both SMTP username and password')
+        if self.security == 'plain' and self.username:
+            raise ValueError('SMTP authentication requires TLS')
+        return self
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file='.env', env_nested_delimiter='__', extra='ignore'
@@ -63,3 +81,4 @@ class Config(BaseSettings):
     database: DatabaseConfig
     auth: AuthConfig
     http: HttpConfig
+    mail: MailConfig | None = None

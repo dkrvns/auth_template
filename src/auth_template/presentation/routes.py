@@ -1,22 +1,31 @@
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends, Request, Response, status
 
-from auth_template.application.dto import ChangePasswordDTO, CredentialsDTO
+from auth_template.application.dto.user.change_password import ChangePasswordDTO
+from auth_template.application.dto.user.credentials import CredentialsDTO
+from auth_template.application.dto.user.sign_up import SignUpDTO
 from auth_template.application.errors import InvalidTokenError
-from auth_template.application.use_cases import (
-    ChangePasswordCommand,
-    LogInCommand,
-    LogOutCommand,
-    RefreshCommand,
-    SignUpCommand,
-)
 from auth_template.config import AuthConfig
+from auth_template.infrastructure.auth.handlers.registration.send_code import (
+    SendRegistrationCodeHandler,
+)
+from auth_template.infrastructure.auth.handlers.registration.sign_up import (
+    SignUpHandler,
+)
+from auth_template.infrastructure.auth.handlers.session.log_in import LogInHandler
+from auth_template.infrastructure.auth.handlers.session.log_out import LogOutHandler
+from auth_template.infrastructure.auth.handlers.session.refresh import RefreshHandler
+from auth_template.infrastructure.auth.handlers.user.change_password import (
+    ChangePasswordHandler,
+)
 from auth_template.presentation.dependencies import CurrentUser, guard_auth_request
 from auth_template.presentation.schemas import (
     ChangePasswordRequest,
     CreatedUserResponse,
     CredentialsRequest,
     RefreshRequest,
+    RegistrationCodeRequest,
+    SignUpRequest,
     TokenResponse,
     UserResponse,
 )
@@ -31,12 +40,25 @@ users_router = APIRouter(prefix='/users', tags=['users'])
 @auth_router.post('/signup', status_code=status.HTTP_201_CREATED)
 @inject
 async def sign_up(
-    body: CredentialsRequest, command: FromDishka[SignUpCommand]
+    body: SignUpRequest, handler: FromDishka[SignUpHandler]
 ) -> CreatedUserResponse:
-    user_id = await command(
-        CredentialsDTO(email=str(body.email), password=body.password.get_secret_value())
+    user_id = await handler(
+        SignUpDTO(
+            email=str(body.email),
+            password=body.password.get_secret_value(),
+            code=body.code.get_secret_value(),
+        )
     )
     return CreatedUserResponse(id=user_id)
+
+
+@auth_router.post('/signup/code', status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def send_registration_code(
+    body: RegistrationCodeRequest,
+    handler: FromDishka[SendRegistrationCodeHandler],
+) -> None:
+    await handler(str(body.email))
 
 
 @auth_router.post('/login')
@@ -44,10 +66,10 @@ async def sign_up(
 async def log_in(
     body: CredentialsRequest,
     response: Response,
-    command: FromDishka[LogInCommand],
+    handler: FromDishka[LogInHandler],
     config: FromDishka[AuthConfig],
 ) -> TokenResponse:
-    pair = await command(
+    pair = await handler(
         CredentialsDTO(email=str(body.email), password=body.password.get_secret_value())
     )
     deliver_tokens(response, pair, config)
@@ -59,7 +81,7 @@ async def log_in(
 async def refresh(
     request: Request,
     response: Response,
-    command: FromDishka[RefreshCommand],
+    handler: FromDishka[RefreshHandler],
     config: FromDishka[AuthConfig],
     body: RefreshRequest | None = None,
 ) -> TokenResponse:
@@ -72,7 +94,7 @@ async def refresh(
     )
     if raw is None or not 32 <= len(raw) <= 256:
         raise InvalidTokenError
-    pair = await command(raw)
+    pair = await handler(raw)
     deliver_tokens(response, pair, config)
     return TokenResponse.from_entity(pair, cookie=config.transport == 'cookie')
 
@@ -82,10 +104,10 @@ async def refresh(
 async def log_out(
     identity: CurrentUser,
     response: Response,
-    command: FromDishka[LogOutCommand],
+    handler: FromDishka[LogOutHandler],
     config: FromDishka[AuthConfig],
 ) -> None:
-    await command(identity[1])
+    await handler(identity[1])
     clear_tokens(response, config)
 
 
@@ -95,12 +117,12 @@ async def change_password(
     body: ChangePasswordRequest,
     identity: CurrentUser,
     response: Response,
-    command: FromDishka[ChangePasswordCommand],
+    handler: FromDishka[ChangePasswordHandler],
     config: FromDishka[AuthConfig],
 ) -> None:
-    await command(
+    await handler(
         ChangePasswordDTO(
-            user_id=identity[0].id,
+            user_id=identity[1].user_id,
             current_password=body.current_password.get_secret_value(),
             new_password=body.new_password.get_secret_value(),
         )

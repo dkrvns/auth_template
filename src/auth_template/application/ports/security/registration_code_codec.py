@@ -1,0 +1,9 @@
+from typing import Protocol
+
+
+class RegistrationCodeCodec(Protocol):
+    def generate(self) -> str: ...
+
+    def digest(self, email: str, code: str) -> str: ...
+
+    def verify(self, email: str, code: str, digest: str) -> bool: ...

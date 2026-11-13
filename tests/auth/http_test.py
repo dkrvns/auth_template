@@ -1,14 +1,16 @@
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid7
 
 import jwt
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.auth.registration_helpers import RegistrationMailbox, registration_payload
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import (
+from auth_template.infrastructure.db.models import (
     AuthSessionModel,
     RefreshTokenModel,
     UserModel,
@@ -16,9 +18,13 @@ from auth_template.infrastructure.models import (
 
 
 async def test_sign_up_user(
-    http_client: AsyncClient, credentials: dict[str, str], session: AsyncSession
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    session: AsyncSession,
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
-    response = await http_client.post('/auth/signup', json=credentials)
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    response = await http_client.post('/auth/signup', json=payload)
 
     assert response.status_code == 201
     user = await session.get(UserModel, UUID(response.json()['id']))
@@ -29,12 +35,17 @@ async def test_sign_up_user(
 
 
 async def test_sign_up_user_duplicate(
-    http_client: AsyncClient, credentials: dict[str, str]
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
-    assert (await http_client.post('/auth/signup', json=credentials)).status_code == 201
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    assert (await http_client.post('/auth/signup', json=payload)).status_code == 201
     credentials['email'] = credentials['email'].upper()
 
-    response = await http_client.post('/auth/signup', json=credentials)
+    response = await http_client.post(
+        '/auth/signup', json={**payload, 'email': credentials['email']}
+    )
 
     assert response.status_code == 409
     assert response.json() == {'detail': 'User already exists'}
@@ -56,7 +67,7 @@ async def test_sign_up_user_invalid_request(
     field: str,
     value: str | bool,
 ) -> None:
-    payload = {**credentials, field: value}
+    payload = {**credentials, 'code': '123456', field: value}
 
     response = await http_client.post('/auth/signup', json=payload)
 
@@ -83,12 +94,16 @@ async def test_log_in_user_returns_stored_identity(
     'existing_user', [False, True], ids=['unknown', 'wrong-password']
 )
 async def test_log_in_user_invalid_credentials(
-    http_client: AsyncClient, credentials: dict[str, str], existing_user: bool
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    existing_user: bool,
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
     if existing_user:
-        assert (
-            await http_client.post('/auth/signup', json=credentials)
-        ).status_code == 201
+        payload = await registration_payload(
+            http_client, registration_mailbox, credentials
+        )
+        assert (await http_client.post('/auth/signup', json=payload)).status_code == 201
     response = await http_client.post(
         '/auth/login', json={**credentials, 'password': 'Wrong password 42!'}
     )
@@ -127,6 +142,7 @@ async def test_get_user_rejects_invalid_claims(
     token_pair: dict[str, str],
     test_config: Config,
     claim: str,
+    session: AsyncSession,
 ) -> None:
     payload = jwt.decode(
         token_pair['access_token'], options={'verify_signature': False}
@@ -140,7 +156,19 @@ async def test_get_user_rejects_invalid_claims(
         'sub': None,
     }
     if claim == 'other-user':
-        payload['sub'] = str(uuid7())
+        other_user_id = uuid7()
+        await session.execute(
+            insert(UserModel).values(
+                id=other_user_id,
+                email=f'{other_user_id.hex}@example.com',
+                password_hash='unusable-password-hash',
+                is_active=True,
+            )
+        )
+        await session.commit()
+        assert await session.get(UserModel, other_user_id) is not None
+        assert str(other_user_id) != payload['sub']
+        payload['sub'] = str(other_user_id)
     elif claim == 'missing-exp':
         del payload['exp']
     elif claim != 'signature':
@@ -166,20 +194,35 @@ async def test_refresh_rotates_and_revokes_replayed_session(
     assert response.status_code == 200
     replacement = response.json()
     assert replacement['refresh_token'] != token_pair['refresh_token']
-    assert replacement['refresh_token'] not in str(
-        (await session.scalars(select(RefreshTokenModel.digest))).all()
+    old_digest = hashlib.sha256(token_pair['refresh_token'].encode()).hexdigest()
+    new_digest = hashlib.sha256(replacement['refresh_token'].encode()).hexdigest()
+    old = await session.get(RefreshTokenModel, old_digest, populate_existing=True)
+    new = await session.get(RefreshTokenModel, new_digest, populate_existing=True)
+    assert old is not None
+    assert new is not None
+    assert old.is_used is True
+    assert new.is_used is False
+    assert new.session_id == old.session_id
+    stored_digests = (await session.scalars(select(RefreshTokenModel.digest))).all()
+    assert replacement['refresh_token'] not in stored_digests
+
+    refreshed_again = await http_client.post(
+        '/auth/refresh', json={'refresh_token': replacement['refresh_token']}
     )
+    assert refreshed_again.status_code == 200
+    latest = refreshed_again.json()
+    assert latest['refresh_token'] != replacement['refresh_token']
 
     replay = await http_client.post(
         '/auth/refresh', json={'refresh_token': token_pair['refresh_token']}
     )
     assert replay.status_code == 401
     denied = await http_client.get(
-        '/users/me', headers={'Authorization': f'Bearer {replacement["access_token"]}'}
+        '/users/me', headers={'Authorization': f'Bearer {latest["access_token"]}'}
     )
     assert denied.status_code == 401
     denied_refresh = await http_client.post(
-        '/auth/refresh', json={'refresh_token': replacement['refresh_token']}
+        '/auth/refresh', json={'refresh_token': latest['refresh_token']}
     )
     assert denied_refresh.status_code == 401
 
@@ -324,6 +367,7 @@ async def test_openapi_schema_describes_authentication(
     assert response.status_code == 200
     assert set(response.json()['paths']) == {
         '/auth/signup',
+        '/auth/signup/code',
         '/auth/login',
         '/auth/refresh',
         '/auth/logout',

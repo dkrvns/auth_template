@@ -1,3 +1,31 @@
 # Project instructions
 
 Read [.codex/AGENTS.md](.codex/AGENTS.md) and the applicable complete rule files.
+
+Imports in existing tests and test fixtures may be updated without additional
+permission. Do not change test or fixture logic without the user's explicit
+permission, including assertions, test data, mock behavior and test coverage.
+Keep formatting and lint fixes in test files limited to import changes.
+
+Group state-changing business operations in application/commands/<area>/ and
+atomic application actions in application/interactors/<area>/; avoid generic
+use_cases modules. Authentication and registration belong to infrastructure/auth:
+group handlers by responsibility and keep token issuance there.
+Application must never import infrastructure, including through compatibility shims.
+Import from the defining modules directly; do not add import-only compatibility
+modules or re-export aggregators to preserve obsolete import paths.
+Use gateway terminology for database access in this project; keep each gateway
+implementation in its own infrastructure/gateways module. Transaction committers
+and rate limiters belong in separate modules rather than gateway aggregators.
+Gateway implementations inherit their narrow Reader, Saver and Updater ports
+directly. Do not introduce intermediate interfaces just to combine these ports,
+or add Protocol as a base to concrete implementations.
+Do not add @override decorators to gateway implementations.
+Single-record gateway reads return the existing DTO type with empty fields when
+no record exists, never None or a separate empty-result type. Consumers check
+identity and required fields before using the result.
+Keep database models, the SQL committer and PostgreSQL rate limiter in
+infrastructure/db. Split security adapters into focused modules under
+infrastructure/security; keep the clock in infrastructure/clock.py.
+Run the local project API, databases, migrations and checks exclusively in Docker.
+Do not start host Python services or host PostgreSQL as a fallback.

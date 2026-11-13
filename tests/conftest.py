@@ -5,13 +5,28 @@ from collections.abc import AsyncIterator
 import pytest
 from dishka import Provider, Scope, provide
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import delete
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from auth_template.config import Config
-from auth_template.infrastructure.models import Base
+from auth_template.infrastructure.db.models import (
+    Base,
+    RegistrationCodeModel,
+    UserModel,
+)
 from auth_template.ioc import create_container
 from auth_template.main import create_app
+from tests.auth.registration_helpers import (
+    MailOverrideProvider,
+    RegistrationMailbox,
+    registration_payload,
+)
 
 
 @pytest.fixture(scope='session')
@@ -80,10 +95,22 @@ class DatabaseOverrideProvider(Provider):
 
 
 @pytest.fixture
+def registration_mailbox() -> RegistrationMailbox:
+    return RegistrationMailbox()
+
+
+@pytest.fixture
 async def http_client(
-    test_config: Config, session: AsyncSession, engine: AsyncEngine
+    test_config: Config,
+    session: AsyncSession,
+    engine: AsyncEngine,
+    registration_mailbox: RegistrationMailbox,
 ) -> AsyncIterator[AsyncClient]:
-    container = create_container(test_config, DatabaseOverrideProvider(session, engine))
+    container = create_container(
+        test_config,
+        DatabaseOverrideProvider(session, engine),
+        MailOverrideProvider(registration_mailbox),
+    )
     app = create_app(test_config, container)
     async with (
         app.router.lifespan_context(app),
@@ -92,6 +119,37 @@ async def http_client(
         ) as client,
     ):
         yield client
+
+
+@pytest.fixture
+async def independent_client(
+    engine: AsyncEngine,
+    test_config: Config,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
+) -> AsyncIterator[AsyncClient]:
+    container = create_container(
+        test_config, MailOverrideProvider(registration_mailbox)
+    )
+    app = create_app(test_config, container)
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(
+            transport=ASGITransport(app=app), base_url='https://test'
+        ) as client,
+    ):
+        try:
+            yield client
+        finally:
+            async with async_sessionmaker(engine).begin() as session:
+                await session.execute(
+                    delete(UserModel).where(UserModel.email == credentials['email'])
+                )
+                await session.execute(
+                    delete(RegistrationCodeModel).where(
+                        RegistrationCodeModel.email == credentials['email']
+                    )
+                )
 
 
 @pytest.fixture
@@ -104,9 +162,12 @@ def credentials() -> dict[str, str]:
 
 @pytest.fixture
 async def token_pair(
-    http_client: AsyncClient, credentials: dict[str, str]
+    http_client: AsyncClient,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> dict[str, str]:
-    response = await http_client.post('/auth/signup', json=credentials)
+    payload = await registration_payload(http_client, registration_mailbox, credentials)
+    response = await http_client.post('/auth/signup', json=payload)
     assert response.status_code == 201
     response = await http_client.post('/auth/login', json=credentials)
     assert response.status_code == 200

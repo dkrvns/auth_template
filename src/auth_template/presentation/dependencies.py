@@ -4,11 +4,14 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from auth_template.application.dto import Principal, User
+from auth_template.application.dto.principal import Principal
+from auth_template.application.dto.user.user import User
 from auth_template.application.errors import InvalidTokenError
-from auth_template.application.ports import RateLimiter
-from auth_template.application.use_cases import GetCurrentUserInteractor
+from auth_template.application.ports.rate_limiter import RateLimiter
 from auth_template.config import AuthConfig
+from auth_template.infrastructure.auth.interactors.user.get_current_user import (
+    GetCurrentUserInteractor,
+)
 
 bearer = HTTPBearer(auto_error=False)
 

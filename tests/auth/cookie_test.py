@@ -3,6 +3,11 @@ from collections.abc import AsyncIterator
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from tests.auth.registration_helpers import (
+    MailOverrideProvider,
+    RegistrationMailbox,
+    registration_payload,
+)
 from tests.conftest import DatabaseOverrideProvider
 
 from auth_template.config import Config
@@ -12,12 +17,19 @@ from auth_template.main import create_app
 
 @pytest.fixture
 async def cookie_client(
-    test_config: Config, session: AsyncSession, engine: AsyncEngine
+    test_config: Config,
+    session: AsyncSession,
+    engine: AsyncEngine,
+    registration_mailbox: RegistrationMailbox,
 ) -> AsyncIterator[AsyncClient]:
     config = test_config.model_copy(deep=True)
     config.auth.transport = 'cookie'
     config.auth.allowed_origins = ['https://test']
-    container = create_container(config, DatabaseOverrideProvider(session, engine))
+    container = create_container(
+        config,
+        DatabaseOverrideProvider(session, engine),
+        MailOverrideProvider(registration_mailbox),
+    )
     app = create_app(config, container)
     async with (
         app.router.lifespan_context(app),
@@ -31,11 +43,14 @@ async def cookie_client(
 
 
 async def test_cookie_authentication_lifecycle(
-    cookie_client: AsyncClient, credentials: dict[str, str]
+    cookie_client: AsyncClient,
+    credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
-    assert (
-        await cookie_client.post('/auth/signup', json=credentials)
-    ).status_code == 201
+    payload = await registration_payload(
+        cookie_client, registration_mailbox, credentials
+    )
+    assert (await cookie_client.post('/auth/signup', json=payload)).status_code == 201
     login = await cookie_client.post('/auth/login', json=credentials)
 
     assert login.status_code == 200
@@ -86,10 +101,15 @@ async def test_http_rate_limit_returns_retry_after(
     session: AsyncSession,
     engine: AsyncEngine,
     credentials: dict[str, str],
+    registration_mailbox: RegistrationMailbox,
 ) -> None:
     config = test_config.model_copy(deep=True)
     config.auth.requests_per_minute = 1
-    container = create_container(config, DatabaseOverrideProvider(session, engine))
+    container = create_container(
+        config,
+        DatabaseOverrideProvider(session, engine),
+        MailOverrideProvider(registration_mailbox),
+    )
     app = create_app(config, container)
     async with (
         app.router.lifespan_context(app),
@@ -98,8 +118,10 @@ async def test_http_rate_limit_returns_retry_after(
             base_url='https://test',
         ) as client,
     ):
-        first = await client.post('/auth/signup', json=credentials)
-        assert first.status_code == 201
+        first = await client.post(
+            '/auth/signup/code', json={'email': credentials['email']}
+        )
+        assert first.status_code == 204
 
         response = await client.post('/auth/login', json=credentials)
 

@@ -1,33 +1,93 @@
-name: Checks
-on: [push, pull_request]
+name: CI/CD
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: auth-template-ci
+  COMPOSE_FILE: compose.yaml:compose.ci.yaml
+
 jobs:
-  check:
+  backend:
+    name: Python checks
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: auth_test
-          POSTGRES_PASSWORD: auth-test-only
-          POSTGRES_DB: auth_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U auth_test -d auth_test"
-          --health-interval 5s --health-timeout 3s --health-retries 20
-    env:
-      TEST_DATABASE_DSN: postgresql+psycopg://auth_test:auth-test-only@127.0.0.1:5432/auth_test
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - run: cp .env.example .env
+      - run: docker compose --profile test build tests
+      - name: Format, lint and types
+        run: >-
+          docker compose run --rm tests sh -c
+          'uv run ruff format --check . && uv run ruff check . && uv run mypy src'
+      - name: PostgreSQL and SMTP tests
+        run: docker compose run --rm tests uv run pytest -q
+      - name: Audit Python dependencies
+        run: docker compose run --rm --no-deps tests uv run pip-audit --progress-spinner off
+      - if: always()
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  frontend:
+    name: TypeScript and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose --profile test build frontend frontend_checks
+      - run: docker compose run --rm --no-deps frontend_checks npm run check
+      - run: docker compose run --rm --no-deps frontend_checks npm audit
+      - if: always()
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  browser:
+    name: Browser authentication scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate disposable auth key
+        run: |
+          cp .env.example .env
+          auth_secret=$(docker run --rm python:3.14-slim python -c 'import secrets; print(secrets.token_urlsafe(48))')
+          echo "::add-mask::$auth_secret"
+          printf '\nAUTH__SECRET=%s\n' "$auth_secret" >> .env
+      - run: docker compose --profile test build api frontend frontend_e2e
+      - run: docker compose up -d --wait --wait-timeout 120 frontend
+      - run: docker compose run --rm --no-deps frontend_e2e
+      - name: Startup diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail 100 migrate api frontend
+      - if: always()
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  package:
+    name: Deliver Docker images
+    needs: [backend, frontend, browser]
+    if: github.event_name == 'push' && contains(fromJSON('["refs/heads/master", "refs/heads/main"]'), github.ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose build api frontend
+      - name: Export release images
+        run: |
+          docker image save auth-template:local auth-template:frontend | gzip > auth-template-images.tar.gz
+      - uses: actions/upload-artifact@v4
         with:
-          version: "0.9.5"
-          enable-cache: true
-      - run: uv python install 3.14
-      - run: uv sync --locked
-      - run: uv run ruff format --check .
-      - run: uv run ruff check .
-      - run: uv run mypy src
-      - run: uv run pytest
-      - run: uv run pip-audit --progress-spinner off
+          name: auth-template-images-${{ github.sha }}
+          path: auth-template-images.tar.gz
+          retention-days: 1
+          compression-level: 0
