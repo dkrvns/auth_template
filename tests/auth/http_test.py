@@ -1,10 +1,11 @@
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid7
 
 import jwt
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.auth.registration_helpers import RegistrationMailbox, registration_payload
 
@@ -141,6 +142,7 @@ async def test_get_user_rejects_invalid_claims(
     token_pair: dict[str, str],
     test_config: Config,
     claim: str,
+    session: AsyncSession,
 ) -> None:
     payload = jwt.decode(
         token_pair['access_token'], options={'verify_signature': False}
@@ -154,7 +156,19 @@ async def test_get_user_rejects_invalid_claims(
         'sub': None,
     }
     if claim == 'other-user':
-        payload['sub'] = str(uuid7())
+        other_user_id = uuid7()
+        await session.execute(
+            insert(UserModel).values(
+                id=other_user_id,
+                email=f'{other_user_id.hex}@example.com',
+                password_hash='unusable-password-hash',
+                is_active=True,
+            )
+        )
+        await session.commit()
+        assert await session.get(UserModel, other_user_id) is not None
+        assert str(other_user_id) != payload['sub']
+        payload['sub'] = str(other_user_id)
     elif claim == 'missing-exp':
         del payload['exp']
     elif claim != 'signature':
@@ -180,20 +194,35 @@ async def test_refresh_rotates_and_revokes_replayed_session(
     assert response.status_code == 200
     replacement = response.json()
     assert replacement['refresh_token'] != token_pair['refresh_token']
-    assert replacement['refresh_token'] not in str(
-        (await session.scalars(select(RefreshTokenModel.digest))).all()
+    old_digest = hashlib.sha256(token_pair['refresh_token'].encode()).hexdigest()
+    new_digest = hashlib.sha256(replacement['refresh_token'].encode()).hexdigest()
+    old = await session.get(RefreshTokenModel, old_digest, populate_existing=True)
+    new = await session.get(RefreshTokenModel, new_digest, populate_existing=True)
+    assert old is not None
+    assert new is not None
+    assert old.is_used is True
+    assert new.is_used is False
+    assert new.session_id == old.session_id
+    stored_digests = (await session.scalars(select(RefreshTokenModel.digest))).all()
+    assert replacement['refresh_token'] not in stored_digests
+
+    refreshed_again = await http_client.post(
+        '/auth/refresh', json={'refresh_token': replacement['refresh_token']}
     )
+    assert refreshed_again.status_code == 200
+    latest = refreshed_again.json()
+    assert latest['refresh_token'] != replacement['refresh_token']
 
     replay = await http_client.post(
         '/auth/refresh', json={'refresh_token': token_pair['refresh_token']}
     )
     assert replay.status_code == 401
     denied = await http_client.get(
-        '/users/me', headers={'Authorization': f'Bearer {replacement["access_token"]}'}
+        '/users/me', headers={'Authorization': f'Bearer {latest["access_token"]}'}
     )
     assert denied.status_code == 401
     denied_refresh = await http_client.post(
-        '/auth/refresh', json={'refresh_token': replacement['refresh_token']}
+        '/auth/refresh', json={'refresh_token': latest['refresh_token']}
     )
     assert denied_refresh.status_code == 401
 

@@ -6,15 +6,18 @@ import pytest
 from httpx import AsyncClient
 from pydantic import SecretStr
 from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from tests.auth.registration_helpers import RegistrationMailbox, registration_payload
 
+from auth_template.application.dto.user.user import User
 from auth_template.application.errors import MailDeliveryError
 from auth_template.config import Config, MailConfig
 from auth_template.infrastructure.db.models import RegistrationCodeModel, UserModel
 from auth_template.infrastructure.gateways.registration_code import (
     RegistrationCodeGateway,
 )
+from auth_template.infrastructure.gateways.user import UserGateway
 from auth_template.infrastructure.mail.smtp import SmtpRegistrationCodeSender
 from auth_template.infrastructure.security.registration_code_codec import (
     HmacRegistrationCodeCodec,
@@ -86,21 +89,79 @@ async def test_wrong_codes_persist_attempt_limit(
 
 
 async def test_successful_code_is_consumed_atomically(
-    http_client: AsyncClient,
+    independent_client: AsyncClient,
     credentials: dict[str, str],
     registration_mailbox: RegistrationMailbox,
-    session: AsyncSession,
+    engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    payload = await registration_payload(http_client, registration_mailbox, credentials)
-    assert (await http_client.post('/auth/signup', json=payload)).status_code == 201
-    assert await session.scalar(select(RegistrationCodeModel.attempts_left)) == 0
-    await session.execute(delete(UserModel))
-    await session.commit()
+    payload = await registration_payload(
+        independent_client, registration_mailbox, credentials
+    )
+    original_save = UserGateway.save
+    reached_write = False
 
-    replay = await http_client.post('/auth/signup', json=payload)
+    async def fail_after_insert(gateway: UserGateway, user: User) -> None:
+        nonlocal reached_write
+        await original_save(gateway, user)
+        assert (
+            await gateway._session.scalar(
+                select(RegistrationCodeModel.attempts_left).where(
+                    RegistrationCodeModel.email == credentials['email']
+                )
+            )
+            == 0
+        )
+        reached_write = True
+        raise OperationalError(
+            'simulated write failure', None, RuntimeError('test fault')
+        )
+
+    with monkeypatch.context() as failure:
+        failure.setattr(UserGateway, 'save', fail_after_insert)
+        rejected = await independent_client.post('/auth/signup', json=payload)
+
+    assert reached_write is True
+    assert rejected.status_code == 503
+    assert rejected.json() == {'detail': 'Service unavailable'}
+    async with async_sessionmaker(engine)() as observer:
+        assert (
+            await observer.scalar(
+                select(UserModel.id).where(UserModel.email == credentials['email'])
+            )
+            is None
+        )
+        code = await observer.get(RegistrationCodeModel, credentials['email'])
+        assert code is not None
+        assert code.attempts_left == 5
+
+    # The same code must still work after the failed transaction rolled back.
+    created = await independent_client.post('/auth/signup', json=payload)
+    assert created.status_code == 201
+    async with async_sessionmaker(engine).begin() as observer:
+        code = await observer.get(RegistrationCodeModel, credentials['email'])
+        assert code is not None
+        assert code.attempts_left == 0
+        assert (
+            await observer.scalar(
+                select(UserModel.id).where(UserModel.email == credentials['email'])
+            )
+            is not None
+        )
+        await observer.execute(
+            delete(UserModel).where(UserModel.email == credentials['email'])
+        )
+
+    replay = await independent_client.post('/auth/signup', json=payload)
 
     assert replay.status_code == 400
-    assert await session.scalar(select(UserModel.id)) is None
+    async with async_sessionmaker(engine)() as observer:
+        assert (
+            await observer.scalar(
+                select(UserModel.id).where(UserModel.email == credentials['email'])
+            )
+            is None
+        )
 
 
 async def test_resend_is_throttled_and_replaces_old_code(

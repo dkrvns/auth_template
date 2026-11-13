@@ -7,9 +7,11 @@ from auth_template.application.ports.registration.sender import RegistrationCode
 class RegistrationMailbox:
     def __init__(self) -> None:
         self.codes: dict[str, str] = {}
+        self.deliveries: list[tuple[str, str]] = []
 
     async def send(self, email: str, code: str) -> None:
         self.codes[email] = code
+        self.deliveries.append((email, code))
 
 
 class MailOverrideProvider(Provider):
